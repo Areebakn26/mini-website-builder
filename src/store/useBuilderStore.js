@@ -208,7 +208,19 @@ export const useBuilderStore = create((set, get) => ({
         if (session?.user) {
           await get().loadUserProjects();
         } else {
-          set({ userProjects: [], currentProjectId: null });
+          set({
+            userProjects: [],
+            currentProjectId: null,
+            currentCode: DEFAULT_STARTER_HTML,
+            messages: [
+              {
+                id: 'init-1',
+                role: 'assistant',
+                content: "Hello! I'm your AI Website Builder. Describe what kind of website you'd like to create, or pick a starter template below!",
+                timestamp: new Date().toISOString()
+              }
+            ]
+          });
         }
       });
     } catch (err) {

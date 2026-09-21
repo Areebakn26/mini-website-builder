@@ -72,6 +72,7 @@ export default function Navbar() {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
     }
+    setViewState('landing');
   };
 
   return (
