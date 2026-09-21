@@ -27,6 +27,16 @@ const VERIFIED_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop'
   ],
+  pastry: [
+    'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1530610476181-d83430b64dcd?w=800&auto=format&fit=crop'
+  ],
+  brunch: [
+    'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1484723091479-0016912550a7?w=800&auto=format&fit=crop'
+  ],
   bakery: [
     'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&auto=format&fit=crop',
@@ -90,16 +100,20 @@ const ALL_VERIFIED_URLS = new Set(Object.values(VERIFIED_IMAGE_POOLS).flat());
  */
 function getCategoryPoolForText(text) {
   const lower = (text || '').toLowerCase();
+  
+  if (lower.includes('brunch') || lower.includes('avocado') || lower.includes('toast') || lower.includes('egg') || lower.includes('benedict') || lower.includes('breakfast')) return VERIFIED_IMAGE_POOLS.brunch;
+  if (lower.includes('pastry') || lower.includes('croissant') || lower.includes('éclair') || lower.includes('eclair') || lower.includes('tart') || lower.includes('bakery') || lower.includes('bread') || lower.includes('dough')) return VERIFIED_IMAGE_POOLS.pastry;
+  if (lower.includes('coffee') || lower.includes('espresso') || lower.includes('cappuccino') || lower.includes('latte') || lower.includes('flat white') || lower.includes('cafe') || lower.includes('café')) return VERIFIED_IMAGE_POOLS.coffee;
+  if (lower.includes('burger') || lower.includes('cheeseburger')) return VERIFIED_IMAGE_POOLS.burger;
+  if (lower.includes('pizza')) return VERIFIED_IMAGE_POOLS.pizza;
+  if (lower.includes('sushi') || lower.includes('roll')) return VERIFIED_IMAGE_POOLS.sushi;
+  if (lower.includes('food') || lower.includes('restaurant') || lower.includes('dining') || lower.includes('dish') || lower.includes('menu')) return VERIFIED_IMAGE_POOLS.food;
+
   if (lower.includes('nail') || lower.includes('manicure') || lower.includes('pedicure') || lower.includes('polish')) return VERIFIED_IMAGE_POOLS.nail;
   if (lower.includes('makeup') || lower.includes('cosmetic') || lower.includes('beauty') || lower.includes('facial') || lower.includes('spa')) return VERIFIED_IMAGE_POOLS.makeup;
   if (lower.includes('hair') || lower.includes('hairstyle') || lower.includes('barber') || lower.includes('cut')) return VERIFIED_IMAGE_POOLS.hair;
   if (lower.includes('salon')) return VERIFIED_IMAGE_POOLS.salon;
-  if (lower.includes('coffee') || lower.includes('espresso') || lower.includes('latte') || lower.includes('cafe') || lower.includes('café')) return VERIFIED_IMAGE_POOLS.coffee;
-  if (lower.includes('bakery') || lower.includes('pastry') || lower.includes('bread') || lower.includes('croissant')) return VERIFIED_IMAGE_POOLS.bakery;
-  if (lower.includes('burger')) return VERIFIED_IMAGE_POOLS.burger;
-  if (lower.includes('pizza')) return VERIFIED_IMAGE_POOLS.pizza;
-  if (lower.includes('sushi')) return VERIFIED_IMAGE_POOLS.sushi;
-  if (lower.includes('food') || lower.includes('restaurant') || lower.includes('dining') || lower.includes('dish') || lower.includes('menu')) return VERIFIED_IMAGE_POOLS.food;
+
   if (lower.includes('sneaker') || lower.includes('shoe') || lower.includes('kicks')) return VERIFIED_IMAGE_POOLS.sneaker;
   if (lower.includes('fashion') || lower.includes('cloth') || lower.includes('apparel') || lower.includes('store')) return VERIFIED_IMAGE_POOLS.fashion;
   if (lower.includes('gym') || lower.includes('fitness') || lower.includes('workout') || lower.includes('muscle') || lower.includes('training')) return VERIFIED_IMAGE_POOLS.gym;
@@ -134,16 +148,16 @@ export function extractHtml(rawResponse) {
   // 3. CONTEXT-AWARE IMAGE SANITIZER: Transform <img> tags to guaranteed real, working Unsplash URLs
   const poolCounters = {};
   clean = clean.replace(/<img\s+([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi, (fullTag, beforeSrc, srcUrl, afterSrc) => {
-    // If the image URL is already one of our verified working Unsplash URLs, keep it!
-    if (ALL_VERIFIED_URLS.has(srcUrl)) {
-      return fullTag;
-    }
-
     // Combine full tag text (alt, class, id) to detect category context
     const tagContext = `${fullTag} ${beforeSrc} ${afterSrc}`;
     const pool = getCategoryPoolForText(tagContext);
 
-    // Track usage index per pool so images are diverse and don't repeat unnecessarily
+    // If srcUrl is ALREADY in the correct category pool for this specific image context, keep it!
+    if (pool.includes(srcUrl)) {
+      return fullTag;
+    }
+
+    // Otherwise, select a verified working photo from the matching category pool
     const poolKey = pool[0];
     poolCounters[poolKey] = (poolCounters[poolKey] || 0);
     const selectedUrl = pool[poolCounters[poolKey] % pool.length];
@@ -180,13 +194,15 @@ STRICT GENERATION RULES:
      • Makeup & Beauty: https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&auto=format&fit=crop
      • Nails & Manicure: https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=800&auto=format&fit=crop
      • Hair & Styling: https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1562322140-8baeececf3df?w=800&auto=format&fit=crop
-     • Coffee & Bakery: https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&auto=format&fit=crop
+     • Coffee & Espresso: https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop
+     • Pastries & Croissants: https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&auto=format&fit=crop
+     • Brunch & Toast: https://images.unsplash.com/photo-1525351484163-7529414344d8?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=800&auto=format&fit=crop
      • Sneakers & Fashion: https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&auto=format&fit=crop
      • Gym & Fitness: https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop
      • Tech & Coding: https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop
      • Real Estate & Interiors: https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&auto=format&fit=crop
    - NEVER use pollinations.ai, loremflickr.com, picsum.photos, or placehold.co.
-   - Set descriptive alt text on every image tag (e.g. alt="Manicure nail art", alt="Espresso coffee").
+   - Set descriptive alt text on every image tag (e.g. alt="Manicure nail art", alt="Espresso coffee", alt="Avocado toast").
 
 3. NO BLOCKING OVERLAYS / EMBEDDED SECTIONS:
    - NEVER create unhidden fixed overlays (like <div class="fixed inset-0">) that block the website screen!
@@ -213,24 +229,24 @@ STRICT GENERATION RULES:
    - Place <script>if (window.lucide) lucide.createIcons();</script> before </body>.`;
 
 /**
- * Stream website generation using Groq or OpenAI-compatible endpoints
+ * Stream website generation using Gemini or OpenAI-compatible endpoints
  */
 export async function streamWebsiteGeneration({ 
   apiKey, 
-  baseUrl = 'https://api.groq.com/openai/v1', 
-  model = 'openai/gpt-oss-120b', 
+  baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/', 
+  model = 'gemini-2.0-flash', 
   prompt, 
   currentCode, 
   onChunk, 
   onError 
 }) {
   if (!apiKey) {
-    throw new Error("API Key is missing. Please configure your API key in .env.local or in Settings.");
+    throw new Error("API Key is missing. Please configure your API key in Settings.");
   }
 
   const client = new OpenAI({
     apiKey: apiKey,
-    baseURL: baseUrl || 'https://api.groq.com/openai/v1',
+    baseURL: baseUrl || 'https://generativelanguage.googleapis.com/v1beta/openai/',
     dangerouslyAllowBrowser: true
   });
 

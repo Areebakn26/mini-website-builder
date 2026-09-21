@@ -55,9 +55,9 @@ const DEFAULT_STARTER_HTML = `<!DOCTYPE html>
 </html>`;
 
 export const useBuilderStore = create((set) => ({
-  apiKey: localStorage.getItem('ai_api_key') || import.meta.env.VITE_AI_API_KEY || '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',
-  baseUrl: localStorage.getItem('ai_base_url') || import.meta.env.VITE_AI_BASE_URL || 'https://api.groq.com/openai/v1',
-  model: localStorage.getItem('ai_model') || import.meta.env.VITE_AI_MODEL || 'llama-3.3-70b-versatile',
+  apiKey: localStorage.getItem('ai_api_key') || import.meta.env.VITE_AI_API_KEY || 'AQ.Ab8RN6J568hi1sMsb4Nu7kf1_TxrmKLXVvsNJGvaDXQFhyF1iQ',
+  baseUrl: localStorage.getItem('ai_base_url') || import.meta.env.VITE_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  model: localStorage.getItem('ai_model') || import.meta.env.VITE_AI_MODEL || 'gemini-2.0-flash',
   
   viewState: 'landing', // 'landing' | 'dashboard'
   currentCode: DEFAULT_STARTER_HTML,

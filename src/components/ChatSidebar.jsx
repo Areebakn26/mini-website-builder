@@ -82,7 +82,7 @@ export default function ChatSidebar() {
 
     const activeKey = apiKey && !apiKey.includes('your_groq_api_key') 
       ? apiKey 
-      : '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';
+      : 'AQ.Ab8RN6J568hi1sMsb4Nu7kf1_TxrmKLXVvsNJGvaDXQFhyF1iQ';
 
     const userText = promptToSubmit.trim();
     setInputPrompt('');
