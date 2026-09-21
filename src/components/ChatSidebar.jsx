@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useBuilderStore } from '../store/useBuilderStore';
-import { streamWebsiteGeneration, extractHtml } from '../services/grok';
+import { streamWebsiteGeneration, extractHtml, hydrateImages } from '../services/grok';
 import { 
   Send, 
   Rocket, 
@@ -97,7 +97,7 @@ export default function ChatSidebar() {
     const previousCodeBackup = isNewSite ? '' : currentCode;
 
     try {
-      await streamWebsiteGeneration({
+      const streamedText = await streamWebsiteGeneration({
         apiKey: activeKey,
         baseUrl,
         model,
@@ -126,7 +126,16 @@ export default function ChatSidebar() {
         }
       });
 
-      updateLastAssistantMessage("Website generated successfully! You can preview it live or tweak it further.");
+      // Stream successfully completed! Extract final HTML and hydrate images
+      const finalHtml = extractHtml(streamedText);
+      if (finalHtml && finalHtml.length > 50) {
+        updateLastAssistantMessage("Finding perfect HD photos...");
+        const hydratedHtml = await hydrateImages(finalHtml);
+        setCurrentCode(hydratedHtml);
+        updateLastAssistantMessage("Website complete!");
+      } else {
+        updateLastAssistantMessage("Website complete!");
+      }
     } catch (err) {
       console.error(err);
       if (previousCodeBackup) setCurrentCode(previousCodeBackup);
