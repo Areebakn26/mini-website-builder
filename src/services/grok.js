@@ -161,9 +161,9 @@ export async function streamWebsiteGeneration({
   }
 
   // Normalize obsolete or unavailable model names
-  let activeModel = model || 'gemini-1.5-flash';
-  if (activeModel === 'gemini-2.0-flash') {
-    activeModel = 'gemini-1.5-flash';
+  let activeModel = model || 'gemini-3.6-flash';
+  if (activeModel === 'gemini-2.0-flash' || activeModel === 'gemini-2.5-flash' || activeModel === 'gemini-1.5-flash') {
+    activeModel = 'gemini-3.6-flash';
   }
 
   const isGemini = baseUrl.includes('generativelanguage.googleapis.com') || activeModel.toLowerCase().includes('gemini');
@@ -198,10 +198,11 @@ export async function streamWebsiteGeneration({
     const candidateModels = Array.from(new Set([
       activeModel,
       activeModel.replace(/^models\//, ''),
+      'gemini-3.6-flash',
+      'gemini-2.5-flash',
       'gemini-1.5-flash',
       'gemini-1.5-flash-latest',
-      'gemini-1.5-pro',
-      'gemini-2.5-flash'
+      'gemini-1.5-pro'
     ]));
 
     let response = null;
