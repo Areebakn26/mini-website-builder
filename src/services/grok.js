@@ -195,23 +195,58 @@ export async function streamWebsiteGeneration({
       }
     };
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+    const candidateModels = Array.from(new Set([
+      activeModel,
+      activeModel.replace(/^models\//, ''),
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-pro',
+      'gemini-2.5-flash'
+    ]));
 
-      if (!response.ok) {
-        const errText = await response.text();
-        let msg = `Gemini API Error (${response.status}): ${response.statusText}`;
+    let response = null;
+    let lastErrorMsg = '';
+
+    try {
+      for (const modelCandidate of candidateModels) {
+        const cleanModel = modelCandidate.startsWith('models/') ? modelCandidate : `models/${modelCandidate}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/${cleanModel}:streamGenerateContent?key=${apiKey}&alt=sse`;
+
         try {
-          const errJson = JSON.parse(errText);
-          if (errJson.error?.message) msg = `Gemini API Error: ${errJson.error.message}`;
-        } catch (e) {}
-        throw new Error(msg);
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+            response = res;
+            break;
+          }
+
+          const errText = await res.text();
+          try {
+            const errJson = JSON.parse(errText);
+            lastErrorMsg = errJson.error?.message || `HTTP ${res.status}`;
+          } catch (e) {
+            lastErrorMsg = `HTTP ${res.status}: ${res.statusText}`;
+          }
+
+          // If error is NOT a 404 / model not found (e.g. 401 invalid key), break immediately
+          if (res.status !== 404 && !lastErrorMsg.toLowerCase().includes('not found')) {
+            throw new Error(`Gemini API Error: ${lastErrorMsg}`);
+          }
+        } catch (subErr) {
+          if (!subErr.message?.toLowerCase().includes('not found') && !subErr.message?.includes('404')) {
+            throw subErr;
+          }
+        }
+      }
+
+      if (!response) {
+        throw new Error(`Gemini API Error: ${lastErrorMsg || 'Selected model not found. Please verify your API key in Settings.'}`);
       }
 
       const reader = response.body.getReader();
