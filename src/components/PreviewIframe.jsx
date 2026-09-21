@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useBuilderStore } from '../store/useBuilderStore';
-import { RefreshCw, ExternalLink } from 'lucide-react';
+import { RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
 
 export default function PreviewIframe() {
-  const { currentCode, viewport, isGenerating } = useBuilderStore();
+  const { currentCode, viewport, isGenerating, isProjectLoading } = useBuilderStore();
   const [renderedCode, setRenderedCode] = useState(currentCode);
   const iframeRef = useRef(null);
 
   // Inject scripts into <head>:
   // 1. Intercept <a> clicks: allow #section smooth scrolling, block parent app reloads
-  // 2. Broken image fallback: if an Unsplash URL 404s, gracefully replace with a styled gradient placeholder
   const getProcessedHtml = (htmlString) => {
     if (!htmlString) return '';
     
@@ -87,6 +86,8 @@ export default function PreviewIframe() {
   const lastRenderTimeRef = useRef(0);
 
   useEffect(() => {
+    if (isProjectLoading) return;
+
     const processed = getProcessedHtml(currentCode);
     if (!processed) return;
 
@@ -97,7 +98,6 @@ export default function PreviewIframe() {
     }
 
     const now = Date.now();
-    // Update immediately if renderedCode is blank/empty, or throttle updates every 300ms during streaming
     if (!renderedCode || now - lastRenderTimeRef.current > 300) {
       setRenderedCode(processed);
       lastRenderTimeRef.current = now;
@@ -108,7 +108,7 @@ export default function PreviewIframe() {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [currentCode, isGenerating]);
+  }, [currentCode, isGenerating, isProjectLoading]);
 
   const handleOpenNewTab = () => {
     const blob = new Blob([currentCode], { type: 'text/html' });
@@ -139,10 +139,11 @@ export default function PreviewIframe() {
 
         <div className="flex items-center gap-3">
           <button
+            disabled={isProjectLoading}
             onClick={() => setRenderedCode(getProcessedHtml(currentCode))}
-            className="hover:text-white transition flex items-center gap-1"
+            className="hover:text-white transition flex items-center gap-1 disabled:opacity-40"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin text-violet-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isGenerating || isProjectLoading ? 'animate-spin text-violet-400' : ''}`} />
             <span>Reload</span>
           </button>
           <button onClick={handleOpenNewTab} className="hover:text-white transition flex items-center gap-1">
@@ -154,13 +155,20 @@ export default function PreviewIframe() {
 
       <div className="flex-1 w-full h-full flex items-center justify-center p-4 bg-slate-950/60 overflow-hidden">
         <div className={`transition-all duration-300 ease-in-out relative ${getViewportDimensions()}`}>
-          <iframe
-            ref={iframeRef}
-            srcDoc={renderedCode}
-            title="Website Preview"
-            sandbox="allow-scripts allow-modals"
-            className="w-full h-full bg-white rounded-[inherit] overflow-auto"
-          />
+          {isProjectLoading ? (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-300 gap-3 rounded-[inherit]">
+              <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
+              <span className="text-xs font-semibold tracking-wide">Loading project data & chat history...</span>
+            </div>
+          ) : (
+            <iframe
+              ref={iframeRef}
+              srcDoc={renderedCode}
+              title="Website Preview"
+              sandbox="allow-scripts allow-modals"
+              className="w-full h-full bg-white rounded-[inherit] overflow-auto"
+            />
+          )}
         </div>
       </div>
     </div>

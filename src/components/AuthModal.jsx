@@ -68,7 +68,12 @@ export default function AuthModal() {
       });
       if (error) throw error;
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to initialize Google Sign In.');
+      const msg = err.message || '';
+      if (msg.includes('validation_failed') || msg.includes('Unsupported provider') || msg.includes('not enabled')) {
+        setErrorMsg('Google Sign-In is not enabled yet in your Supabase Dashboard. Please enable Google under Authentication ➔ Providers.');
+      } else {
+        setErrorMsg(msg || 'Failed to initialize Google Sign In.');
+      }
       setLoading(false);
     }
   };

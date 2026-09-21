@@ -62,7 +62,8 @@ export default function ChatSidebar() {
     currentProjectId,
     createProject,
     switchProject,
-    deleteProject
+    deleteProject,
+    persistMessage
   } = useBuilderStore();
 
   const [inputPrompt, setInputPrompt] = useState('');
@@ -146,13 +147,17 @@ export default function ChatSidebar() {
     const userText = promptToSubmit.trim();
     setInputPrompt('');
 
-    // If new project or no current project ID, auto-create project title in database
-    if (isNewSite || !currentProjectId) {
-      await createProject(userText);
+    // Ensure active project ID exists in Supabase
+    let activeProjId = currentProjectId;
+    if (isNewSite || !activeProjId) {
+      activeProjId = await createProject(userText);
     }
 
-    // Add User message
+    // Add User message locally & persist to Supabase table
     addMessage({ role: 'user', content: userText });
+    if (activeProjId) {
+      persistMessage(activeProjId, 'user', userText);
+    }
 
     // Add empty Assistant placeholder
     addMessage({ role: 'assistant', content: 'Crafting website code...' });
@@ -196,9 +201,18 @@ export default function ChatSidebar() {
         updateLastAssistantMessage("Finding perfect HD photos...");
         const hydratedHtml = await hydrateImages(finalHtml);
         setCurrentCode(hydratedHtml);
-        updateLastAssistantMessage("Website complete!");
+        
+        const assistantSuccessMsg = "Website generated successfully! You can preview it live or tweak it further.";
+        updateLastAssistantMessage(assistantSuccessMsg);
+        if (activeProjId) {
+          persistMessage(activeProjId, 'assistant', assistantSuccessMsg);
+        }
       } else {
-        updateLastAssistantMessage("Website complete!");
+        const assistantDoneMsg = "Website complete!";
+        updateLastAssistantMessage(assistantDoneMsg);
+        if (activeProjId) {
+          persistMessage(activeProjId, 'assistant', assistantDoneMsg);
+        }
       }
     } catch (err) {
       console.error(err);

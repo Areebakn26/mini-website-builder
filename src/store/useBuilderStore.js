@@ -79,6 +79,7 @@ export const useBuilderStore = create((set, get) => ({
   userProjects: [],
   currentProjectId: null,
   isAuthModalOpen: false,
+  isProjectLoading: false,
 
   viewState: 'landing', // 'landing' | 'dashboard'
   currentCode: DEFAULT_STARTER_HTML,
@@ -120,12 +121,25 @@ export const useBuilderStore = create((set, get) => ({
   setCurrentCode: (code) => {
     set({ currentCode: code });
 
-    // Debounced Auto-Save to Supabase 2 seconds after code stops changing
-    const { currentProjectId, user } = get();
-    if (currentProjectId && user && isSupabaseConfigured) {
+    const { currentProjectId, user, isProjectLoading } = get();
+
+    // Update in-memory userProjects array so switching is instantaneous
+    if (currentProjectId) {
+      set((state) => ({
+        userProjects: state.userProjects.map((p) =>
+          p.id === currentProjectId ? { ...p, current_code: code, updated_at: new Date().toISOString() } : p
+        )
+      }));
+    }
+
+    // Debounced Auto-Save Guard: DO NOT save if loading project data, or if code is empty string right after reload
+    if (currentProjectId && user && isSupabaseConfigured && !isProjectLoading && code.trim().length > 0) {
       if (autoSaveTimer) clearTimeout(autoSaveTimer);
       autoSaveTimer = setTimeout(async () => {
         try {
+          const currentState = get();
+          if (currentState.isProjectLoading || !currentState.currentCode.trim()) return;
+
           await supabase
             .from('projects')
             .update({ current_code: code, updated_at: new Date().toISOString() })
@@ -154,6 +168,24 @@ export const useBuilderStore = create((set, get) => ({
     return { messages: newMessages };
   }),
 
+  // Persist Message to Supabase Table
+  persistMessage: async (projectId, role, content) => {
+    const { user } = get();
+    if (!user || !isSupabaseConfigured || !projectId) return;
+
+    try {
+      await supabase.from('messages').insert([
+        {
+          project_id: projectId,
+          role: role,
+          content: content
+        }
+      ]);
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Persist message failed:', err);
+    }
+  },
+
   // Auth Initialization Listener
   initAuth: async () => {
     if (!isSupabaseConfigured) return;
@@ -163,13 +195,13 @@ export const useBuilderStore = create((set, get) => ({
       set({ session, user: session?.user || null });
 
       if (session?.user) {
-        get().loadUserProjects();
+        await get().loadUserProjects();
       }
 
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange(async (_event, session) => {
         set({ session, user: session?.user || null });
         if (session?.user) {
-          get().loadUserProjects();
+          await get().loadUserProjects();
         } else {
           set({ userProjects: [], currentProjectId: null });
         }
@@ -179,9 +211,9 @@ export const useBuilderStore = create((set, get) => ({
     }
   },
 
-  // Load user projects from Supabase
+  // Load user projects from Supabase & Hydrate most recent project
   loadUserProjects: async () => {
-    const { user } = get();
+    const { user, currentProjectId } = get();
     if (!user || !isSupabaseConfigured) return;
 
     try {
@@ -192,6 +224,11 @@ export const useBuilderStore = create((set, get) => ({
 
       if (!error && projects) {
         set({ userProjects: projects });
+
+        // On initial page load, auto-select and hydrate the most recent project
+        if (!currentProjectId && projects.length > 0) {
+          await get().switchProject(projects[0].id);
+        }
       }
     } catch (err) {
       if (import.meta.env.DEV) console.error('Load projects failed:', err);
@@ -241,40 +278,68 @@ export const useBuilderStore = create((set, get) => ({
     return tempId;
   },
 
-  // Switch Active Project
+  // Switch Active Project & Hydrate Code + Chat History from Supabase
   switchProject: async (projectId) => {
-    const { userProjects, user } = get();
-    const targetProj = userProjects.find((p) => p.id === projectId);
+    if (!projectId) return;
+    const { user } = get();
 
-    if (targetProj) {
-      set({
-        currentProjectId: targetProj.id,
-        currentCode: targetProj.current_code || '',
-        messages: [
+    set({ isProjectLoading: true, currentProjectId: projectId });
+
+    try {
+      let codeToSet = '';
+      let messagesToSet = [];
+
+      if (user && isSupabaseConfigured) {
+        // 1. Fetch latest project current_code
+        const { data: projData, error: projError } = await supabase
+          .from('projects')
+          .select('current_code, title')
+          .eq('id', projectId)
+          .single();
+
+        if (!projError && projData) {
+          codeToSet = projData.current_code || '';
+        }
+
+        // 2. Fetch all stored messages for project ordered by created_at ascending
+        const { data: msgData, error: msgError } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: true });
+
+        if (!msgError && msgData && msgData.length > 0) {
+          messagesToSet = msgData.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            timestamp: m.created_at
+          }));
+        }
+      } else {
+        const localProj = get().userProjects.find((p) => p.id === projectId);
+        if (localProj) codeToSet = localProj.current_code || '';
+      }
+
+      if (messagesToSet.length === 0) {
+        messagesToSet = [
           {
             id: `msg-${Date.now()}`,
             role: 'assistant',
-            content: `Loaded project: "${targetProj.title}". How would you like to edit or improve it?`,
+            content: codeToSet ? "Loaded project code. How would you like to edit or improve it?" : "Describe what kind of website you'd like to create!",
             timestamp: new Date().toISOString()
           }
-        ]
-      });
-      return;
-    }
-
-    if (user && isSupabaseConfigured) {
-      try {
-        const { data } = await supabase.from('projects').select('*').eq('id', projectId).single();
-        if (data) {
-          set({
-            currentProjectId: data.id,
-            currentCode: data.current_code || '',
-            messages: []
-          });
-        }
-      } catch (err) {
-        if (import.meta.env.DEV) console.error('Switch project error:', err);
+        ];
       }
+
+      set({
+        currentCode: codeToSet,
+        messages: messagesToSet,
+      });
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Error switching project:', err);
+    } finally {
+      set({ isProjectLoading: false });
     }
   },
 
