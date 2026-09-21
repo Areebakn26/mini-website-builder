@@ -1,4 +1,4 @@
-const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || 'p_hRlHDXoJ85r5x_I2ogqmCjLBh_Ch0GCwAzFjdh3FA';
+const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || '';
 
 const imageCache = new Map();
 
