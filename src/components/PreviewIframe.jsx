@@ -51,15 +51,30 @@ export default function PreviewIframe() {
     return injectedScripts + htmlString;
   };
 
-  // Debounced Iframe Rendering (400ms)
+  // Throttled / Instant Iframe Rendering for Live Streaming
+  const lastRenderTimeRef = useRef(0);
+
   useEffect(() => {
-    if (isGenerating) {
+    const processed = getProcessedHtml(currentCode);
+    if (!processed) return;
+
+    if (!isGenerating) {
+      setRenderedCode(processed);
+      lastRenderTimeRef.current = Date.now();
+      return;
+    }
+
+    const now = Date.now();
+    // Update immediately if renderedCode is blank/empty, or throttle updates every 300ms during streaming
+    if (!renderedCode || now - lastRenderTimeRef.current > 300) {
+      setRenderedCode(processed);
+      lastRenderTimeRef.current = now;
+    } else {
       const timer = setTimeout(() => {
         setRenderedCode(getProcessedHtml(currentCode));
-      }, 400);
+        lastRenderTimeRef.current = Date.now();
+      }, 300);
       return () => clearTimeout(timer);
-    } else {
-      setRenderedCode(getProcessedHtml(currentCode));
     }
   }, [currentCode, isGenerating]);
 

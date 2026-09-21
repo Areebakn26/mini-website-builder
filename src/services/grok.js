@@ -120,10 +120,15 @@ export function extractHtml(rawResponse) {
   // 1. Strip markdown codeblock fences ```html ... ```
   let clean = rawResponse.replace(/```(?:html)?\s*/gi, '').replace(/```$/gi, '').trim();
 
-  // 2. Extract starting from <!DOCTYPE html> or <html...> to </html>
-  const match = clean.match(/(?:<!DOCTYPE\s+html[\s\S]*?>\s*)?<html[\s\S]*?(?:<\/html>|$)/i);
-  if (match) {
-    clean = match[0];
+  // 2. Extract starting from <!DOCTYPE html> or <html...>
+  const lower = clean.toLowerCase();
+  const docTypeIdx = lower.indexOf('<!doctype html>');
+  const htmlIdx = lower.indexOf('<html');
+
+  if (docTypeIdx !== -1) {
+    clean = clean.substring(docTypeIdx);
+  } else if (htmlIdx !== -1) {
+    clean = clean.substring(htmlIdx);
   }
 
   // 3. CONTEXT-AWARE IMAGE SANITIZER: Transform <img> tags to guaranteed real, working Unsplash URLs
