@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DEFAULT_STARTER_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -54,11 +55,31 @@ const DEFAULT_STARTER_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-export const useBuilderStore = create((set) => ({
+// Helper: Title from initial prompt (3-4 clean words)
+function titleFromPrompt(prompt) {
+  if (!prompt) return 'Untitled Project';
+  const words = prompt
+    .replace(/[^\w\s]/gi, '')
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !['create', 'build', 'make', 'with', 'and', 'for', 'the', 'page', 'landing'].includes(w.toLowerCase()));
+  
+  if (words.length === 0) return 'New Project';
+  return words.slice(0, 4).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+let autoSaveTimer = null;
+
+export const useBuilderStore = create((set, get) => ({
   apiKey: localStorage.getItem('ai_api_key') || import.meta.env.VITE_AI_API_KEY || 'AQ.Ab8RN6J568hi1sMsb4Nu7kf1_TxrmKLXVvsNJGvaDXQFhyF1iQ',
   baseUrl: localStorage.getItem('ai_base_url') || import.meta.env.VITE_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/',
   model: localStorage.getItem('ai_model') || import.meta.env.VITE_AI_MODEL || 'gemini-2.0-flash',
-  
+
+  session: null,
+  user: null,
+  userProjects: [],
+  currentProjectId: null,
+  isAuthModalOpen: false,
+
   viewState: 'landing', // 'landing' | 'dashboard'
   currentCode: DEFAULT_STARTER_HTML,
   isGenerating: false,
@@ -72,7 +93,6 @@ export const useBuilderStore = create((set) => ({
       timestamp: new Date().toISOString()
     }
   ],
-  isApiKeyModalOpen: false,
 
   setViewState: (viewState) => set({ viewState }),
 
@@ -93,9 +113,29 @@ export const useBuilderStore = create((set) => ({
 
   setViewport: (viewport) => set({ viewport }),
   setActiveTab: (activeTab) => set({ activeTab }),
-  setCurrentCode: (code) => set({ currentCode: code }),
   setIsGenerating: (isGenerating) => set({ isGenerating }),
   setIsApiKeyModalOpen: (isOpen) => set({ isApiKeyModalOpen: isOpen }),
+  setIsAuthModalOpen: (isOpen) => set({ isAuthModalOpen: isOpen }),
+
+  setCurrentCode: (code) => {
+    set({ currentCode: code });
+
+    // Debounced Auto-Save to Supabase 2 seconds after code stops changing
+    const { currentProjectId, user } = get();
+    if (currentProjectId && user && isSupabaseConfigured) {
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(async () => {
+        try {
+          await supabase
+            .from('projects')
+            .update({ current_code: code, updated_at: new Date().toISOString() })
+            .eq('id', currentProjectId);
+        } catch (err) {
+          if (import.meta.env.DEV) console.error('Auto-save failed:', err);
+        }
+      }, 2000);
+    }
+  },
 
   addMessage: (message) => set((state) => ({
     messages: [...state.messages, { 
@@ -114,13 +154,161 @@ export const useBuilderStore = create((set) => ({
     return { messages: newMessages };
   }),
 
-  // Clears chat messages to [] and code to "" to prevent Context Pollution
+  // Auth Initialization Listener
+  initAuth: async () => {
+    if (!isSupabaseConfigured) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      set({ session, user: session?.user || null });
+
+      if (session?.user) {
+        get().loadUserProjects();
+      }
+
+      supabase.auth.onAuthStateChange((_event, session) => {
+        set({ session, user: session?.user || null });
+        if (session?.user) {
+          get().loadUserProjects();
+        } else {
+          set({ userProjects: [], currentProjectId: null });
+        }
+      });
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Auth initialization error:', err);
+    }
+  },
+
+  // Load user projects from Supabase
+  loadUserProjects: async () => {
+    const { user } = get();
+    if (!user || !isSupabaseConfigured) return;
+
+    try {
+      const { data: projects, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (!error && projects) {
+        set({ userProjects: projects });
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Load projects failed:', err);
+    }
+  },
+
+  // Create Project & Persist to Supabase
+  createProject: async (prompt) => {
+    const { user, userProjects } = get();
+    const title = titleFromPrompt(prompt);
+
+    if (user && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .insert([
+            {
+              user_id: user.id,
+              title: title,
+              current_code: '',
+            }
+          ])
+          .select();
+
+        if (!error && data && data.length > 0) {
+          const newProj = data[0];
+          set({
+            userProjects: [newProj, ...userProjects],
+            currentProjectId: newProj.id,
+            currentCode: '',
+            messages: []
+          });
+          return newProj.id;
+        }
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('Create project failed:', err);
+      }
+    }
+
+    // Local Storage fallback
+    const tempId = `local-${Date.now()}`;
+    set({
+      currentProjectId: tempId,
+      currentCode: '',
+      messages: []
+    });
+    return tempId;
+  },
+
+  // Switch Active Project
+  switchProject: async (projectId) => {
+    const { userProjects, user } = get();
+    const targetProj = userProjects.find((p) => p.id === projectId);
+
+    if (targetProj) {
+      set({
+        currentProjectId: targetProj.id,
+        currentCode: targetProj.current_code || '',
+        messages: [
+          {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: `Loaded project: "${targetProj.title}". How would you like to edit or improve it?`,
+            timestamp: new Date().toISOString()
+          }
+        ]
+      });
+      return;
+    }
+
+    if (user && isSupabaseConfigured) {
+      try {
+        const { data } = await supabase.from('projects').select('*').eq('id', projectId).single();
+        if (data) {
+          set({
+            currentProjectId: data.id,
+            currentCode: data.current_code || '',
+            messages: []
+          });
+        }
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('Switch project error:', err);
+      }
+    }
+  },
+
+  // Delete Project
+  deleteProject: async (projectId) => {
+    const { user, userProjects, currentProjectId } = get();
+
+    if (user && isSupabaseConfigured) {
+      try {
+        await supabase.from('projects').delete().eq('id', projectId);
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('Delete project failed:', err);
+      }
+    }
+
+    const updated = userProjects.filter((p) => p.id !== projectId);
+    const isDeletingCurrent = currentProjectId === projectId;
+
+    set({
+      userProjects: updated,
+      currentProjectId: isDeletingCurrent ? null : currentProjectId,
+      currentCode: isDeletingCurrent ? DEFAULT_STARTER_HTML : get().currentCode
+    });
+  },
+
+  // Wipe slate clean for new project
   handleNewProject: () => set({
+    currentProjectId: null,
     currentCode: '',
     messages: []
   }),
 
   resetProject: () => set({
+    currentProjectId: null,
     currentCode: DEFAULT_STARTER_HTML,
     messages: [
       {

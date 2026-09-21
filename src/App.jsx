@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useBuilderStore } from './store/useBuilderStore';
 import Navbar from './components/Navbar';
 import ChatSidebar from './components/ChatSidebar';
 import PreviewIframe from './components/PreviewIframe';
 import CodeEditor from './components/CodeEditor';
 import ApiKeyModal from './components/ApiKeyModal';
+import AuthModal from './components/AuthModal';
 import LandingPage from './components/LandingPage';
 
 export default function App() {
-  const { activeTab, viewState } = useBuilderStore();
+  const { activeTab, viewState, initAuth } = useBuilderStore();
+
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
   // If viewState is 'landing', show full-viewport video landing page
   if (viewState === 'landing') {
@@ -16,6 +21,7 @@ export default function App() {
       <>
         <LandingPage />
         <ApiKeyModal />
+        <AuthModal />
       </>
     );
   }
@@ -48,6 +54,7 @@ export default function App() {
 
       {/* Global Modals */}
       <ApiKeyModal />
+      <AuthModal />
     </div>
   );
 }

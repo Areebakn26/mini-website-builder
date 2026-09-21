@@ -9,7 +9,12 @@ import {
   Utensils, 
   MessageSquare,
   PlusCircle,
-  Video
+  Video,
+  Mic,
+  MicOff,
+  FolderKanban,
+  Trash2,
+  ChevronRight
 } from 'lucide-react';
 
 const STARTER_TEMPLATES = [
@@ -52,28 +57,82 @@ export default function ChatSidebar() {
     messages, 
     addMessage, 
     updateLastAssistantMessage,
-    setIsApiKeyModalOpen,
-    handleNewProject
+    handleNewProject,
+    userProjects,
+    currentProjectId,
+    createProject,
+    switchProject,
+    deleteProject
   } = useBuilderStore();
 
   const [inputPrompt, setInputPrompt] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [showProjectsDrawer, setShowProjectsDrawer] = useState(false);
   const chatEndRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isGenerating]);
 
-  // Handle starter template click - ALWAYS calls handleNewProject() FIRST to wipe slate clean!
+  // Handle Starter Template Click
   const handleTemplateClick = async (prompt) => {
     if (isGenerating) return;
     
-    // 1. Wipe slate clean (messages: [], currentCode: '')
     handleNewProject();
     
-    // 2. Generate new project from scratch
     setTimeout(() => {
       handleSend(prompt, true);
     }, 50);
+  };
+
+  // Voice Input Speech Recognition Handler
+  const handleToggleVoiceInput = () => {
+    if (isListening) {
+      if (recognitionRef.current) recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert('Speech Recognition is not supported by your browser. Please try Chrome, Edge, or Safari.');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map((result) => result[0].transcript)
+          .join('');
+        setInputPrompt(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        if (import.meta.env.DEV) console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Failed to start speech recognition:', err);
+      setIsListening(false);
+    }
   };
 
   const handleSend = async (customPrompt, isNewSite = false) => {
@@ -86,6 +145,11 @@ export default function ChatSidebar() {
 
     const userText = promptToSubmit.trim();
     setInputPrompt('');
+
+    // If new project or no current project ID, auto-create project title in database
+    if (isNewSite || !currentProjectId) {
+      await createProject(userText);
+    }
 
     // Add User message
     addMessage({ role: 'user', content: userText });
@@ -145,8 +209,8 @@ export default function ChatSidebar() {
   };
 
   return (
-    <aside className="w-full md:w-80 lg:w-96 bg-slate-900/95 border-r border-slate-800 flex flex-col h-[calc(100vh-3.5rem)] z-10 shrink-0">
-      {/* Sidebar Header with New Project Button */}
+    <aside className="w-full md:w-80 lg:w-96 bg-slate-900/95 border-r border-slate-800 flex flex-col h-[calc(100vh-3.5rem)] z-10 shrink-0 relative">
+      {/* Sidebar Header with Projects & New Project Buttons */}
       <div className="p-3 border-b border-slate-800/80 bg-slate-900 flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
           <MessageSquare className="w-4 h-4 text-violet-400" />
@@ -154,16 +218,65 @@ export default function ChatSidebar() {
         </div>
 
         <div className="flex items-center gap-1.5">
+          {userProjects.length > 0 && (
+            <button
+              onClick={() => setShowProjectsDrawer(!showProjectsDrawer)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-xl border border-slate-700 transition"
+            >
+              <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Projects ({userProjects.length})</span>
+            </button>
+          )}
+
           <button
             onClick={handleNewProject}
             title="Start New Project (Clear Chat & Code)"
             className="flex items-center gap-1 text-[11px] font-semibold text-violet-300 bg-violet-600/20 hover:bg-violet-600/30 px-2.5 py-1 rounded-xl border border-violet-500/30 transition active:scale-95"
           >
             <PlusCircle className="w-3.5 h-3.5" />
-            <span>New Project</span>
+            <span>New</span>
           </button>
         </div>
       </div>
+
+      {/* Projects History Drawer Overlay */}
+      {showProjectsDrawer && (
+        <div className="absolute top-12 left-0 right-0 z-30 bg-slate-900/98 border-b border-slate-800 shadow-2xl p-3 max-h-64 overflow-y-auto animate-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Saved Cloud Projects
+            </span>
+            <button onClick={() => setShowProjectsDrawer(false)} className="text-xs text-slate-500 hover:text-white">
+              Close
+            </button>
+          </div>
+          <div className="space-y-1">
+            {userProjects.map((p) => (
+              <div
+                key={p.id}
+                className={`flex items-center justify-between p-2 rounded-xl text-xs transition ${
+                  p.id === currentProjectId ? 'bg-violet-600/20 text-violet-200 border border-violet-500/30' : 'bg-slate-950/60 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <button
+                  onClick={() => { switchProject(p.id); setShowProjectsDrawer(false); }}
+                  className="flex-1 text-left truncate flex items-center gap-2"
+                >
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate font-medium">{p.title}</span>
+                </button>
+                <button
+                  onClick={() => deleteProject(p.id)}
+                  title="Delete project"
+                  className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Starter Templates (Quick Prompts) */}
       <div className="p-3 border-b border-slate-800/60 bg-slate-950/40">
@@ -204,6 +317,7 @@ export default function ChatSidebar() {
         <div ref={chatEndRef} />
       </div>
 
+      {/* Input Form with Voice Button */}
       <div className="p-3 border-t border-slate-800 bg-slate-900">
         <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="relative flex items-center">
           <textarea
@@ -216,12 +330,36 @@ export default function ChatSidebar() {
                 handleSend();
               }
             }}
-            placeholder="Describe your site or requested edits..."
-            className="w-full pl-3 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-violet-500 resize-none"
+            placeholder={isListening ? "Listening to your voice..." : "Describe your site or requested edits..."}
+            className={`w-full pl-3 pr-16 py-2.5 bg-slate-950 border rounded-xl text-xs text-slate-200 focus:outline-none resize-none transition ${
+              isListening ? 'border-rose-500 ring-1 ring-rose-500/40' : 'border-slate-800 focus:border-violet-500'
+            }`}
           />
-          <button type="submit" disabled={!inputPrompt.trim() || isGenerating} className="absolute right-2 p-1.5 rounded-lg bg-violet-600 text-white">
-            <Send className="w-4 h-4" />
-          </button>
+          
+          <div className="absolute right-2 flex items-center gap-1">
+            {/* Microphone Voice Button */}
+            <button
+              type="button"
+              onClick={handleToggleVoiceInput}
+              title={isListening ? "Stop Listening" : "Speak Prompt (Voice Input)"}
+              className={`p-1.5 rounded-lg transition ${
+                isListening
+                  ? 'bg-rose-500/20 text-rose-400 animate-pulse ring-1 ring-rose-500/50'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              {isListening ? <MicOff className="w-4 h-4 text-rose-400" /> : <Mic className="w-4 h-4" />}
+            </button>
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={!inputPrompt.trim() || isGenerating}
+              className="p-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-40 transition"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
         </form>
       </div>
     </aside>

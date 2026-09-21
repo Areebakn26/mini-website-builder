@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useBuilderStore } from '../store/useBuilderStore';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { 
   Sparkles, 
   Eye, 
@@ -13,7 +14,12 @@ import {
   Key,
   Check,
   PlusCircle,
-  Home
+  Home,
+  User,
+  LogOut,
+  LogIn,
+  FolderKanban,
+  ChevronDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -26,11 +32,16 @@ export default function Navbar() {
     setActiveTab, 
     apiKey, 
     setIsApiKeyModalOpen,
+    setIsAuthModalOpen,
     handleNewProject,
-    setViewState
+    setViewState,
+    user,
+    userProjects,
+    switchProject
   } = useBuilderStore();
 
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(currentCode);
@@ -56,18 +67,25 @@ export default function Navbar() {
     });
   };
 
+  const handleSignOut = async () => {
+    setUserDropdownOpen(false);
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
+  };
+
   return (
     <header className="h-14 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between z-20 select-none">
       {/* Brand Logo - Click returns to video landing page */}
       <button
         onClick={() => setViewState('landing')}
         title="Return to Home Landing Page"
-        className="flex items-center gap-3 text-left hover:opacity-90 transition group"
+        className="flex items-center gap-3 text-left hover:opacity-90 transition group shrink-0"
       >
         <div className="p-2 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 shadow-md shadow-violet-600/20 text-white">
           <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />
         </div>
-        <div>
+        <div className="hidden sm:block">
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-white text-base tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
               WebCraft AI
@@ -143,12 +161,12 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* Action Buttons */}
+      {/* Action Buttons & Auth */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => setViewState('landing')}
           title="Return to Video Landing Page"
-          className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-xs font-medium transition active:scale-95"
+          className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-xs font-medium transition active:scale-95"
         >
           <Home className="w-3.5 h-3.5 text-indigo-400" />
           <span>Home</span>
@@ -157,7 +175,7 @@ export default function Navbar() {
         <button
           onClick={handleNewProject}
           title="New Project (Wipe slate clean)"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-xs font-medium transition active:scale-95"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-xs font-medium transition active:scale-95"
         >
           <PlusCircle className="w-3.5 h-3.5 text-violet-400" />
           <span>New Project</span>
@@ -178,7 +196,7 @@ export default function Navbar() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-md shadow-violet-600/20 transition active:scale-95"
         >
           <Download className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Export HTML</span>
+          <span className="hidden sm:inline">Export</span>
         </button>
 
         <div className="h-4 w-[1px] bg-slate-800 mx-1 hidden sm:block" />
@@ -195,6 +213,65 @@ export default function Navbar() {
             <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-slate-900 animate-pulse" />
           )}
         </button>
+
+        {/* User Auth Avatar / Sign In */}
+        {user ? (
+          <div className="relative">
+            <button
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="flex items-center gap-1.5 p-1.5 pl-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200 hover:text-white transition"
+            >
+              <div className="w-5 h-5 rounded-full bg-violet-600 text-white flex items-center justify-center text-[10px] font-bold">
+                {(user.email || 'U').charAt(0).toUpperCase()}
+              </div>
+              <span className="max-w-[90px] truncate hidden md:inline">{user.email?.split('@')[0]}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {userDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 text-xs">
+                <div className="p-2 border-b border-slate-800 mb-1">
+                  <p className="font-semibold text-white truncate">{user.email}</p>
+                  <p className="text-[10px] text-slate-400">Signed in</p>
+                </div>
+
+                {userProjects.length > 0 && (
+                  <div className="mb-1 max-h-36 overflow-y-auto">
+                    <p className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Saved Projects
+                    </p>
+                    {userProjects.slice(0, 5).map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => { switchProject(p.id); setUserDropdownOpen(false); }}
+                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 truncate flex items-center gap-1.5"
+                      >
+                        <FolderKanban className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                        <span className="truncate">{p.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSignOut}
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-rose-500/10 text-rose-400 flex items-center gap-2 transition"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-xs font-semibold transition active:scale-95"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Sign In</span>
+          </button>
+        )}
       </div>
     </header>
   );
