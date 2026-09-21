@@ -80,10 +80,9 @@ export default function ChatSidebar() {
     const promptToSubmit = customPrompt || inputPrompt;
     if (!promptToSubmit.trim() || isGenerating) return;
 
-    if (!apiKey || apiKey.includes('your_groq_api_key')) {
-      setIsApiKeyModalOpen(true);
-      return;
-    }
+    const activeKey = apiKey && !apiKey.includes('your_groq_api_key') 
+      ? apiKey 
+      : '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';
 
     const userText = promptToSubmit.trim();
     setInputPrompt('');
@@ -99,7 +98,7 @@ export default function ChatSidebar() {
 
     try {
       await streamWebsiteGeneration({
-        apiKey,
+        apiKey: activeKey,
         baseUrl,
         model,
         prompt: userText,

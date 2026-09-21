@@ -32,13 +32,12 @@ export default function PreviewIframe() {
           }
         }, true);
 
-        // --- Broken image fallback ---
+        // --- Real Image Fallback (NO Placeholders, NO 404s) ---
         document.querySelectorAll('img').forEach(function(img) {
           img.onerror = function() {
             this.onerror = null;
-            this.style.background = 'linear-gradient(135deg, #1e293b 0%, #334155 100%)';
             this.style.objectFit = 'cover';
-            this.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect fill="%23334155" width="400" height="300"/><text fill="%2394a3b8" font-family="sans-serif" font-size="14" x="50%" y="50%" text-anchor="middle" dominant-baseline="middle">Image</text></svg>');
+            this.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop';
           };
         });
       });

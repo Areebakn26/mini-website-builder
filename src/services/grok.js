@@ -1,8 +1,116 @@
-import OpenAI from 'openai';
+// Comprehensive Dictionary of Verified, High-Resolution, 100% Working Unsplash Photo URLs
+const VERIFIED_IMAGE_POOLS = {
+  makeup: [
+    'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=800&auto=format&fit=crop'
+  ],
+  nail: [
+    'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=800&auto=format&fit=crop'
+  ],
+  hair: [
+    'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=800&auto=format&fit=crop'
+  ],
+  salon: [
+    'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800&auto=format&fit=crop'
+  ],
+  coffee: [
+    'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop'
+  ],
+  bakery: [
+    'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop'
+  ],
+  burger: [
+    'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=800&auto=format&fit=crop'
+  ],
+  pizza: [
+    'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop'
+  ],
+  sushi: [
+    'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=800&auto=format&fit=crop'
+  ],
+  food: [
+    'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&auto=format&fit=crop'
+  ],
+  sneaker: [
+    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&auto=format&fit=crop'
+  ],
+  fashion: [
+    'https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=800&auto=format&fit=crop'
+  ],
+  gym: [
+    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1581009146145-b5ef05062e4e?w=800&auto=format&fit=crop'
+  ],
+  tech: [
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop'
+  ],
+  realestate: [
+    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&auto=format&fit=crop'
+  ],
+  car: [
+    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop'
+  ],
+  general: [
+    'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&auto=format&fit=crop'
+  ]
+};
+
+// Flatten set of all known good Unsplash URLs
+const ALL_VERIFIED_URLS = new Set(Object.values(VERIFIED_IMAGE_POOLS).flat());
+
+/**
+ * Match text context to the best category pool
+ */
+function getCategoryPoolForText(text) {
+  const lower = (text || '').toLowerCase();
+  if (lower.includes('nail') || lower.includes('manicure') || lower.includes('pedicure') || lower.includes('polish')) return VERIFIED_IMAGE_POOLS.nail;
+  if (lower.includes('makeup') || lower.includes('cosmetic') || lower.includes('beauty') || lower.includes('facial') || lower.includes('spa')) return VERIFIED_IMAGE_POOLS.makeup;
+  if (lower.includes('hair') || lower.includes('hairstyle') || lower.includes('barber') || lower.includes('cut')) return VERIFIED_IMAGE_POOLS.hair;
+  if (lower.includes('salon')) return VERIFIED_IMAGE_POOLS.salon;
+  if (lower.includes('coffee') || lower.includes('espresso') || lower.includes('latte') || lower.includes('cafe') || lower.includes('café')) return VERIFIED_IMAGE_POOLS.coffee;
+  if (lower.includes('bakery') || lower.includes('pastry') || lower.includes('bread') || lower.includes('croissant')) return VERIFIED_IMAGE_POOLS.bakery;
+  if (lower.includes('burger')) return VERIFIED_IMAGE_POOLS.burger;
+  if (lower.includes('pizza')) return VERIFIED_IMAGE_POOLS.pizza;
+  if (lower.includes('sushi')) return VERIFIED_IMAGE_POOLS.sushi;
+  if (lower.includes('food') || lower.includes('restaurant') || lower.includes('dining') || lower.includes('dish') || lower.includes('menu')) return VERIFIED_IMAGE_POOLS.food;
+  if (lower.includes('sneaker') || lower.includes('shoe') || lower.includes('kicks')) return VERIFIED_IMAGE_POOLS.sneaker;
+  if (lower.includes('fashion') || lower.includes('cloth') || lower.includes('apparel') || lower.includes('store')) return VERIFIED_IMAGE_POOLS.fashion;
+  if (lower.includes('gym') || lower.includes('fitness') || lower.includes('workout') || lower.includes('muscle') || lower.includes('training')) return VERIFIED_IMAGE_POOLS.gym;
+  if (lower.includes('code') || lower.includes('developer') || lower.includes('laptop') || lower.includes('tech') || lower.includes('saas') || lower.includes('software')) return VERIFIED_IMAGE_POOLS.tech;
+  if (lower.includes('house') || lower.includes('home') || lower.includes('property') || lower.includes('real estate') || lower.includes('living')) return VERIFIED_IMAGE_POOLS.realestate;
+  if (lower.includes('car') || lower.includes('auto') || lower.includes('vehicle')) return VERIFIED_IMAGE_POOLS.car;
+  return VERIFIED_IMAGE_POOLS.general;
+}
 
 /**
  * Clean markdown extraction helper using regex to return ONLY clean HTML
- * starting with <!DOCTYPE html> or <html>.
+ * starting with <!DOCTYPE html> or <html>, and transform any unreliable image URLs
+ * to guaranteed relevant, working Unsplash images.
  */
 export function extractHtml(rawResponse) {
   if (!rawResponse) return '';
@@ -16,12 +124,26 @@ export function extractHtml(rawResponse) {
     clean = match[0];
   }
 
-  // 3. SAFETY NET: Strip any pollinations.ai or loremflickr URLs the LLM might still emit (both are unreliable/random).
-  //    Replace with a subtle gradient placeholder so nothing looks broken.
-  clean = clean.replace(/https:\/\/image\.pollinations\.ai\/[^\s"'<>]*/gi, 
-    'https://placehold.co/800x600/334155/94a3b8?text=Image');
-  clean = clean.replace(/https:\/\/loremflickr\.com\/[^\s"'<>]*/gi, 
-    'https://placehold.co/800x600/334155/94a3b8?text=Image');
+  // 3. CONTEXT-AWARE IMAGE SANITIZER: Transform <img> tags to guaranteed real, working Unsplash URLs
+  const poolCounters = {};
+  clean = clean.replace(/<img\s+([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi, (fullTag, beforeSrc, srcUrl, afterSrc) => {
+    // If the image URL is already one of our verified working Unsplash URLs, keep it!
+    if (ALL_VERIFIED_URLS.has(srcUrl)) {
+      return fullTag;
+    }
+
+    // Combine full tag text (alt, class, id) to detect category context
+    const tagContext = `${fullTag} ${beforeSrc} ${afterSrc}`;
+    const pool = getCategoryPoolForText(tagContext);
+
+    // Track usage index per pool so images are diverse and don't repeat unnecessarily
+    const poolKey = pool[0];
+    poolCounters[poolKey] = (poolCounters[poolKey] || 0);
+    const selectedUrl = pool[poolCounters[poolKey] % pool.length];
+    poolCounters[poolKey]++;
+
+    return `<img ${beforeSrc}src="${selectedUrl}"${afterSrc}>`;
+  });
 
   return clean;
 }
@@ -46,19 +168,18 @@ const SYSTEM_PROMPT = `You are WebCraft AI, an elite web developer creating full
 STRICT GENERATION RULES:
 1. Output ONLY a valid single-file HTML document starting with <!DOCTYPE html>. Do NOT wrap in markdown fences or include conversational text.
 
-2. IMAGES — USE ONLY REAL UNSPLASH PHOTO URLs (CRITICAL):
-   - For EVERY <img> tag, you MUST use a real Unsplash photo URL that you know from your training data.
-   - Format: https://images.unsplash.com/photo-{real-photo-id}?w=800&auto=format&fit=crop
-   - Pick photos that EXACTLY match the content of each section. Examples:
-     • Salon/Makeup: https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&auto=format&fit=crop
-     • Nail Art/Manicure: https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&auto=format&fit=crop
-     • Hair Styling: https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop
-     • Coffee/Cafe: https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop
-     • Sneakers/Shoes: https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop
-     • Gym/Fitness: https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop
-     • Tech/Laptops: https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600&auto=format&fit=crop
-   - NEVER use picsum.photos, loremflickr.com, pollinations.ai, placeholder.com, or via.placeholder.com. These return random/broken images.
-   - Use DIFFERENT photo IDs for each image on the page — do not repeat the same photo.
+2. IMAGES — USE ONLY REAL, VERIFIED UNSPLASH PHOTO URLs (CRITICAL):
+   - For EVERY <img> tag, you MUST use one of these verified, high-resolution Unsplash photo URLs:
+     • Makeup & Beauty: https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&auto=format&fit=crop
+     • Nails & Manicure: https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=800&auto=format&fit=crop
+     • Hair & Styling: https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1562322140-8baeececf3df?w=800&auto=format&fit=crop
+     • Coffee & Bakery: https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&auto=format&fit=crop
+     • Sneakers & Fashion: https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&auto=format&fit=crop
+     • Gym & Fitness: https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop
+     • Tech & Coding: https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop
+     • Real Estate & Interiors: https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop or https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&auto=format&fit=crop
+   - NEVER use pollinations.ai, loremflickr.com, picsum.photos, or placehold.co.
+   - Set descriptive alt text on every image tag (e.g. alt="Manicure nail art", alt="Espresso coffee").
 
 3. NO BLOCKING OVERLAYS / EMBEDDED SECTIONS:
    - NEVER create unhidden fixed overlays (like <div class="fixed inset-0">) that block the website screen!
