@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useBuilderStore } from '../store/useBuilderStore';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { X, Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { X, Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
 
 export default function AuthModal() {
-  const { isAuthModalOpen, setIsAuthModalOpen } = useBuilderStore();
+  const { isAuthModalOpen, setIsAuthModalOpen, setViewState } = useBuilderStore();
   
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
@@ -20,7 +20,7 @@ export default function AuthModal() {
     if (!email.trim() || !password.trim()) return;
 
     if (!isSupabaseConfigured) {
-      setErrorMsg('Supabase environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) are missing in .env.local.');
+      setErrorMsg('Supabase environment variables are missing.');
       return;
     }
 
@@ -32,14 +32,19 @@ export default function AuthModal() {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        setSuccessMsg('Successfully signed in!');
+        setSuccessMsg('Successfully signed in! Entering builder...');
         setTimeout(() => {
           setIsAuthModalOpen(false);
-        }, 1000);
+          setViewState('dashboard');
+        }, 800);
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setSuccessMsg('Account created! Please check your email to confirm registration.');
+        setSuccessMsg('Account created! Entering builder...');
+        setTimeout(() => {
+          setIsAuthModalOpen(false);
+          setViewState('dashboard');
+        }, 1000);
       }
     } catch (err) {
       setErrorMsg(err.message || 'Authentication failed.');
@@ -50,7 +55,7 @@ export default function AuthModal() {
 
   const handleGoogleSignIn = async () => {
     if (!isSupabaseConfigured) {
-      setErrorMsg('Supabase is unconfigured. Please add VITE_SUPABASE_URL to your .env file.');
+      setErrorMsg('Supabase is unconfigured.');
       return;
     }
 
@@ -66,6 +71,11 @@ export default function AuthModal() {
       setErrorMsg(err.message || 'Failed to initialize Google Sign In.');
       setLoading(false);
     }
+  };
+
+  const handleContinueAsGuest = () => {
+    setIsAuthModalOpen(false);
+    setViewState('dashboard');
   };
 
   return (
@@ -86,7 +96,7 @@ export default function AuthModal() {
           </h2>
           <p className="text-xs text-slate-400 mt-1">
             {mode === 'login'
-              ? 'Sign in to access your saved websites and cloud history'
+              ? 'Sign in to access your saved cloud websites & project history'
               : 'Sign up for free cloud project storage & multi-turn history'}
           </p>
         </div>
@@ -96,7 +106,7 @@ export default function AuthModal() {
           <div className="mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
-              <strong>Demo Local Mode Active:</strong> Supabase URL/Key is unconfigured. Add <code className="bg-amber-950/60 px-1 py-0.5 rounded">VITE_SUPABASE_URL</code> to test live authentication.
+              <strong>Demo Local Mode:</strong> Add <code className="bg-amber-950/60 px-1 py-0.5 rounded">VITE_SUPABASE_URL</code> to enable live Supabase Auth.
             </div>
           </div>
         )}
@@ -191,22 +201,22 @@ export default function AuthModal() {
             ) : mode === 'login' ? (
               <>
                 <LogIn className="w-4 h-4" />
-                <span>Sign In</span>
+                <span>Sign In & Open App</span>
               </>
             ) : (
               <>
                 <UserPlus className="w-4 h-4" />
-                <span>Sign Up</span>
+                <span>Sign Up & Open App</span>
               </>
             )}
           </button>
         </form>
 
-        {/* Toggle Mode */}
-        <div className="mt-6 text-center text-xs text-slate-400">
+        {/* Toggle Mode & Guest Access */}
+        <div className="mt-6 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/80 pt-4">
           {mode === 'login' ? (
             <span>
-              Don't have an account?{' '}
+              Need an account?{' '}
               <button
                 onClick={() => { setMode('signup'); setErrorMsg(''); setSuccessMsg(''); }}
                 className="text-violet-400 font-semibold hover:underline"
@@ -225,6 +235,14 @@ export default function AuthModal() {
               </button>
             </span>
           )}
+
+          <button
+            onClick={handleContinueAsGuest}
+            className="text-slate-400 hover:text-white flex items-center gap-1 font-medium transition"
+          >
+            <span>Guest mode</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </div>

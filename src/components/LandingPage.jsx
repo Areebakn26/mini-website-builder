@@ -2,11 +2,15 @@ import React from 'react';
 import { useBuilderStore } from '../store/useBuilderStore';
 
 export default function LandingPage() {
-  const { setViewState } = useBuilderStore();
+  const { setViewState, user, setIsAuthModalOpen } = useBuilderStore();
 
-  const handleEnterDashboard = (e) => {
+  const handleAuthOrEnter = (e) => {
     if (e) e.preventDefault();
-    setViewState('dashboard');
+    if (user) {
+      setViewState('dashboard');
+    } else {
+      setIsAuthModalOpen(true);
+    }
   };
 
   return (
@@ -31,7 +35,7 @@ export default function LandingPage() {
 
       {/* 3. Header Navbar */}
       <header className="fixed top-0 left-0 right-0 z-10 px-6 sm:px-12 py-6 flex items-center justify-between max-w-7xl mx-auto">
-        <button onClick={handleEnterDashboard} className="flex items-center gap-2 text-left group">
+        <button onClick={handleAuthOrEnter} className="flex items-center gap-2 text-left group">
           <svg className="w-6 h-4 text-white fill-current group-hover:scale-105 transition" viewBox="0 0 23 17">
             <path d="M8.15 0.9 L4.55 0.9 L0.5 9.3 L4.1 9.3 Z" />
             <path d="M17.0 0 L13.4 0 L6.15 16.4 L9.75 16.4 Z" />
@@ -44,24 +48,24 @@ export default function LandingPage() {
         </button>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-          <button onClick={handleEnterDashboard} className="hover:text-white transition">About</button>
-          <button onClick={handleEnterDashboard} className="hover:text-white transition">Templates</button>
-          <button onClick={handleEnterDashboard} className="hover:text-white transition">Features</button>
+          <button onClick={handleAuthOrEnter} className="hover:text-white transition">About</button>
+          <button onClick={handleAuthOrEnter} className="hover:text-white transition">Templates</button>
+          <button onClick={handleAuthOrEnter} className="hover:text-white transition">Features</button>
         </nav>
 
         <div className="flex items-center gap-4">
           <button
-            onClick={handleEnterDashboard}
+            onClick={handleAuthOrEnter}
             className="hidden sm:inline-flex text-xs font-medium text-slate-300 hover:text-white transition"
           >
-            Log in / Access
+            {user ? `Signed in as ${user.email?.split('@')[0]}` : 'Log in / Access'}
           </button>
 
           <button
-            onClick={handleEnterDashboard}
+            onClick={handleAuthOrEnter}
             className="px-5 py-2 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/30 text-white backdrop-blur-md transition shadow-lg hover:shadow-violet-500/20 active:scale-95"
           >
-            Get Started
+            {user ? 'Go to Builder' : 'Get Started'}
           </button>
         </div>
       </header>
@@ -82,10 +86,10 @@ export default function LandingPage() {
         {/* Glassmorphic Call to Action Button */}
         <div className="mt-8">
           <button
-            onClick={handleEnterDashboard}
+            onClick={handleAuthOrEnter}
             className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full text-base font-semibold text-white bg-gradient-to-r from-violet-600/30 via-indigo-500/20 to-violet-600/30 hover:from-violet-600/50 hover:to-indigo-600/50 border border-white/40 shadow-2xl backdrop-blur-xl transition-all duration-300 active:scale-95 hover:shadow-violet-500/30"
           >
-            <span>Start building today</span>
+            <span>{user ? 'Go to Website Builder' : 'Start building today'}</span>
             <svg className="w-4 h-3 stroke-white fill-none stroke-[2] transition-transform group-hover:translate-x-1" viewBox="0 0 16 11">
               <path d="M0 5.5 H14.6 M10.3 1.2 L14.9 5.5 L10.3 9.8" />
             </svg>
