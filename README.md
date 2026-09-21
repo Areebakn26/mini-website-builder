@@ -52,12 +52,12 @@ Create a `.env.local` file in the project root:
 
 ```env
 # AI Model Configuration (Gemini 2.0 Flash)
-VITE_AI_API_KEY=AQ.Ab8RN6J568hi1sMsb4Nu7kf1_TxrmKLXVvsNJGvaDXQFhyF1iQ
+VITE_AI_API_KEY=your_gemini_api_key_here
 VITE_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 VITE_AI_MODEL=gemini-2.0-flash
 
 # Unsplash Search API Credentials
-VITE_UNSPLASH_ACCESS_KEY=p_hRlHDXoJ85r5x_I2ogqmCjLBh_Ch0GCwAzFjdh3FA
+VITE_UNSPLASH_ACCESS_KEY=your_unsplash_access_key_here
 
 # Supabase Production Configuration
 VITE_SUPABASE_URL=https://ufytvbdsvumoavcmsdlc.supabase.co
@@ -124,10 +124,10 @@ In the Vercel deployment setup screen, expand **Environment Variables** and add:
 
 | Key | Value |
 | --- | --- |
-| `VITE_AI_API_KEY` | `AQ.Ab8RN6J568hi1sMsb4Nu7kf1_TxrmKLXVvsNJGvaDXQFhyF1iQ` |
+| `VITE_AI_API_KEY` | `your_gemini_api_key_here` |
 | `VITE_AI_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
 | `VITE_AI_MODEL` | `gemini-2.0-flash` |
-| `VITE_UNSPLASH_ACCESS_KEY` | `p_hRlHDXoJ85r5x_I2ogqmCjLBh_Ch0GCwAzFjdh3FA` |
+| `VITE_UNSPLASH_ACCESS_KEY` | `your_unsplash_access_key_here` |
 | `VITE_SUPABASE_URL` | `https://ufytvbdsvumoavcmsdlc.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
 
