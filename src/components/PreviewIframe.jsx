@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useBuilderStore } from '../store/useBuilderStore';
 import { RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
 
 export default function PreviewIframe() {
   const { currentCode, viewport, isGenerating, isProjectLoading } = useBuilderStore();
-  const [renderedCode, setRenderedCode] = useState(currentCode);
   const iframeRef = useRef(null);
 
   // Inject scripts into <head>:
@@ -82,39 +81,19 @@ export default function PreviewIframe() {
     return injectedScripts + htmlString;
   };
 
-  // Throttled / Instant Iframe Rendering for Live Streaming
-  const lastRenderTimeRef = useRef(0);
-
-  useEffect(() => {
-    if (isProjectLoading) return;
-
-    const processed = getProcessedHtml(currentCode);
-    if (!processed) return;
-
-    if (!isGenerating) {
-      setRenderedCode(processed);
-      lastRenderTimeRef.current = Date.now();
-      return;
-    }
-
-    const now = Date.now();
-    if (!renderedCode || now - lastRenderTimeRef.current > 300) {
-      setRenderedCode(processed);
-      lastRenderTimeRef.current = now;
-    } else {
-      const timer = setTimeout(() => {
-        setRenderedCode(getProcessedHtml(currentCode));
-        lastRenderTimeRef.current = Date.now();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [currentCode, isGenerating, isProjectLoading]);
+  const processedHtml = getProcessedHtml(currentCode);
 
   const handleOpenNewTab = () => {
     const blob = new Blob([currentCode], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleReloadIframe = () => {
+    if (iframeRef.current) {
+      iframeRef.current.srcdoc = processedHtml;
+    }
   };
 
   const getViewportDimensions = () => {
@@ -140,7 +119,7 @@ export default function PreviewIframe() {
         <div className="flex items-center gap-3">
           <button
             disabled={isProjectLoading}
-            onClick={() => setRenderedCode(getProcessedHtml(currentCode))}
+            onClick={handleReloadIframe}
             className="hover:text-white transition flex items-center gap-1 disabled:opacity-40"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isGenerating || isProjectLoading ? 'animate-spin text-violet-400' : ''}`} />
@@ -163,7 +142,7 @@ export default function PreviewIframe() {
           ) : (
             <iframe
               ref={iframeRef}
-              srcDoc={renderedCode}
+              srcDoc={processedHtml}
               title="Website Preview"
               sandbox="allow-scripts allow-modals"
               className="w-full h-full bg-white rounded-[inherit] overflow-auto"

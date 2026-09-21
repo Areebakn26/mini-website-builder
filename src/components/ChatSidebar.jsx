@@ -147,16 +147,16 @@ export default function ChatSidebar() {
     const userText = promptToSubmit.trim();
     setInputPrompt('');
 
-    // Ensure active project ID exists in Supabase
+    // Ensure active project ID exists in Supabase BEFORE adding & persisting messages
     let activeProjId = currentProjectId;
     if (isNewSite || !activeProjId) {
       activeProjId = await createProject(userText);
     }
 
-    // Add User message locally & persist to Supabase table
+    // Add User message locally & await persistence to Supabase table
     addMessage({ role: 'user', content: userText });
     if (activeProjId) {
-      persistMessage(activeProjId, 'user', userText);
+      await persistMessage(activeProjId, 'user', userText);
     }
 
     // Add empty Assistant placeholder
@@ -205,13 +205,13 @@ export default function ChatSidebar() {
         const assistantSuccessMsg = "Website generated successfully! You can preview it live or tweak it further.";
         updateLastAssistantMessage(assistantSuccessMsg);
         if (activeProjId) {
-          persistMessage(activeProjId, 'assistant', assistantSuccessMsg);
+          await persistMessage(activeProjId, 'assistant', assistantSuccessMsg);
         }
       } else {
         const assistantDoneMsg = "Website complete!";
         updateLastAssistantMessage(assistantDoneMsg);
         if (activeProjId) {
-          persistMessage(activeProjId, 'assistant', assistantDoneMsg);
+          await persistMessage(activeProjId, 'assistant', assistantDoneMsg);
         }
       }
     } catch (err) {

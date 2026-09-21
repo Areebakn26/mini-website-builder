@@ -168,19 +168,24 @@ export const useBuilderStore = create((set, get) => ({
     return { messages: newMessages };
   }),
 
-  // Persist Message to Supabase Table
+  // Persist Message to Supabase Table (with select to confirm write)
   persistMessage: async (projectId, role, content) => {
     const { user } = get();
     if (!user || !isSupabaseConfigured || !projectId) return;
 
     try {
-      await supabase.from('messages').insert([
+      const { data, error } = await supabase.from('messages').insert([
         {
           project_id: projectId,
           role: role,
           content: content
         }
-      ]);
+      ]).select();
+      
+      if (error && import.meta.env.DEV) {
+        console.error('Persist message error:', error);
+      }
+      return data;
     } catch (err) {
       if (import.meta.env.DEV) console.error('Persist message failed:', err);
     }
@@ -290,7 +295,7 @@ export const useBuilderStore = create((set, get) => ({
       let messagesToSet = [];
 
       if (user && isSupabaseConfigured) {
-        // 1. Fetch latest project current_code
+        // 1. Fetch latest project record (current_code)
         const { data: projData, error: projError } = await supabase
           .from('projects')
           .select('current_code, title')
@@ -332,13 +337,14 @@ export const useBuilderStore = create((set, get) => ({
         ];
       }
 
+      // Atomically set project code, chat history messages, and clear loading lock
       set({
         currentCode: codeToSet,
         messages: messagesToSet,
+        isProjectLoading: false
       });
     } catch (err) {
       if (import.meta.env.DEV) console.error('Error switching project:', err);
-    } finally {
       set({ isProjectLoading: false });
     }
   },
