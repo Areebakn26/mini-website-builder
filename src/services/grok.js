@@ -161,15 +161,21 @@ export async function streamWebsiteGeneration({
   }
 
   // Normalize obsolete or unavailable model names
-  let activeModel = model || 'gemini-3.6-flash';
-  if (activeModel === 'gemini-2.0-flash' || activeModel === 'gemini-2.5-flash' || activeModel === 'gemini-1.5-flash') {
-    activeModel = 'gemini-3.6-flash';
-  }
+  let activeModel = model || 'gemini-1.5-flash';
 
   const isGemini = baseUrl.includes('generativelanguage.googleapis.com') || activeModel.toLowerCase().includes('gemini');
 
   if (isGemini) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?key=${apiKey}&alt=sse`;
+    // Detect mismatched API key types
+    if (apiKey.startsWith('gsk_')) {
+      throw new Error("You are using a Groq API key ('gsk_...'). Please open Settings (🔑) and select 'Groq (Llama 70B)' as your provider.");
+    }
+    if (apiKey.startsWith('sk-')) {
+      throw new Error("You are using an OpenAI API key ('sk-...'). Please open Settings (🔑) and select 'OpenAI' as your provider.");
+    }
+    if (apiKey.startsWith('AQ') || apiKey.startsWith('eyJ')) {
+      throw new Error("You pasted a Supabase key instead of a Google Gemini API Key. Please get a free Gemini API key from https://aistudio.google.com/app/apikey and paste it into Settings (🔑).");
+    }
 
     let userPromptText = '';
     if (currentCode && currentCode.length > 50 && !currentCode.includes('Describe your dream website')) {
@@ -198,11 +204,10 @@ export async function streamWebsiteGeneration({
     const candidateModels = Array.from(new Set([
       activeModel,
       activeModel.replace(/^models\//, ''),
-      'gemini-3.6-flash',
-      'gemini-2.5-flash',
       'gemini-1.5-flash',
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-pro'
+      'gemini-2.0-flash',
+      'gemini-1.5-pro',
+      'gemini-2.0-flash-exp'
     ]));
 
     let response = null;
