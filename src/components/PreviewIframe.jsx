@@ -13,52 +13,65 @@ export default function PreviewIframe() {
   const getProcessedHtml = (htmlString) => {
     if (!htmlString) return '';
     
-    const injectedScripts = `<script>
+    const injectedScripts = `<style>
+      html {
+        scroll-behavior: smooth !important;
+        scroll-padding-top: 5rem !important;
+      }
+      body {
+        overflow-y: auto !important;
+      }
+    </style>
+    <script>
       document.addEventListener('DOMContentLoaded', function() {
-        // --- Anchor click interceptor ---
+        // --- Anchor click interceptor for smooth section navigation ---
         document.addEventListener('click', function(e) {
           var a = e.target.closest('a');
-          if (a) {
-            var href = a.getAttribute('href');
-            if (href && href.startsWith('#') && href.length > 1) {
-              e.preventDefault();
-              var targetEl = document.querySelector(href);
-              if (targetEl) {
-                targetEl.scrollIntoView({ behavior: 'smooth' });
+          if (!a) return;
+          var href = a.getAttribute('href');
+          if (href && href.startsWith('#') && href.length > 1) {
+            e.preventDefault();
+            var id = href.substring(1).trim();
+            var targetEl = null;
+
+            // 1. Exact match by ID or selector
+            try {
+              targetEl = document.getElementById(id) || document.querySelector(href);
+            } catch (err) {}
+
+            // 2. Fuzzy match by ID (e.g. href="#menu" matching id="our-menu" or id="menu-section")
+            if (!targetEl) {
+              var cleanId = id.toLowerCase().replace(/[-_]/g, '');
+              var allElems = document.querySelectorAll('[id]');
+              for (var i = 0; i < allElems.length; i++) {
+                var elId = (allElems[i].id || '').toLowerCase().replace(/[-_]/g, '');
+                if (elId && (elId === cleanId || elId.includes(cleanId) || cleanId.includes(elId))) {
+                  targetEl = allElems[i];
+                  break;
+                }
               }
-            } else if (!href || href === '#' || href === '/' || href === 'index.html' || href === '' || href.startsWith(window.location.origin)) {
-              e.preventDefault();
             }
+
+            // 3. Match section by heading or text content
+            if (!targetEl) {
+              var linkText = (a.textContent || id).trim().toLowerCase();
+              var sections = document.querySelectorAll('section, main > div, article');
+              for (var j = 0; j < sections.length; j++) {
+                var secText = (sections[j].textContent || '').toLowerCase();
+                if (secText.includes(linkText) || secText.includes(id.toLowerCase())) {
+                  targetEl = sections[j];
+                  break;
+                }
+              }
+            }
+
+            if (targetEl) {
+              targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          } else if (!href || href === '#' || href === '/' || href === 'index.html' || href === '' || href.startsWith(window.location.origin)) {
+            e.preventDefault();
           }
         }, true);
-
-        // --- Option A: Dynamic Unsplash Search API (Real-Time Topic Matching) ---
-        var UNSPLASH_KEY = 'p_hRlHDXoJ85r5x_I2ogqmCjLBh_Ch0GCwAzFjdh3FA';
-        document.querySelectorAll('img').forEach(function(img) {
-          var altText = img.getAttribute('alt') || img.getAttribute('title') || '';
-          if (altText && altText.length > 2 && !img.dataset.unsplashResolved) {
-            img.dataset.unsplashResolved = 'true';
-            var query = encodeURIComponent(altText.trim());
-            fetch('https://api.unsplash.com/search/photos?query=' + query + '&per_page=5&client_id=' + UNSPLASH_KEY)
-              .then(function(res) { return res.json(); })
-              .then(function(data) {
-                if (data.results && data.results.length > 0) {
-                  var photo = data.results[Math.floor(Math.random() * data.results.length)];
-                  var photoUrl = (photo.urls && (photo.urls.regular || photo.urls.small)) || '';
-                  if (photoUrl) {
-                    img.src = photoUrl;
-                  }
-                }
-              })
-              .catch(function(err) {});
-          }
-
-          img.onerror = function() {
-            this.onerror = null;
-            this.style.objectFit = 'cover';
-            this.src = 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800&auto=format&fit=crop';
-          };
-        });
       });
     </script>`;
 

@@ -128,9 +128,10 @@ STRICT GENERATION RULES:
    - The <body> tag MUST be scrollable: class="min-h-screen w-full overflow-y-auto font-sans" (along with your chosen background and text color classes, e.g. bg-slate-950 text-slate-100 for dark mode or bg-slate-50 text-slate-900 / bg-pink-50 text-slate-800 for light/pink mode).
    - NEVER add "h-screen" or "overflow-hidden" to the <body> tag.
 
-5. NAVBAR & MATCHING SECTION IDs:
-   - Every major section MUST have a clear id attribute matching the navbar links!
-   - Example Navbar links must scroll to sections with matching id attributes (e.g., href="#products" -> <section id="products">).
+5. NAVBAR & EXACT MATCHING SECTION IDs (CRITICAL FOR NAVIGATION):
+   - Every single <a> link in the navbar MUST have an href attribute starting with '#' (e.g., href="#menu", href="#about", href="#pricing", href="#contact").
+   - You MUST add the EXACT corresponding id attribute to the target section tag (e.g., <section id="menu">, <section id="about">, <section id="pricing">, <section id="contact">).
+   - Ensure the id string in <section id="..."> matches the href anchor in <a href="..."> EXACTLY, letter for letter (all lowercase, no trailing words).
 
 6. HEAD CDN REQUIREMENTS:
    - Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
