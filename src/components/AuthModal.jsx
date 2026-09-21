@@ -47,7 +47,14 @@ export default function AuthModal() {
         }, 1000);
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Authentication failed.');
+      const msg = err.message || 'Authentication failed.';
+      if (msg.toLowerCase().includes('rate limit') || err.status === 429) {
+        setErrorMsg('Signup rate limit reached by Supabase. Please wait 5 minutes, switch to Sign In if you already created an account, or use Guest Mode.');
+      } else if (msg.toLowerCase().includes('already registered')) {
+        setErrorMsg('This email is already registered. Please switch to "Sign In" mode below.');
+      } else {
+        setErrorMsg(msg);
+      }
     } finally {
       setLoading(false);
     }
