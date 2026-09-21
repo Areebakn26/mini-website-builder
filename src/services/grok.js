@@ -81,6 +81,12 @@ const VERIFIED_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&auto=format&fit=crop'
   ],
+  celebration: [
+    'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=800&auto=format&fit=crop'
+  ],
   car: [
     'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop'
@@ -96,31 +102,53 @@ const VERIFIED_IMAGE_POOLS = {
 const ALL_VERIFIED_URLS = new Set(Object.values(VERIFIED_IMAGE_POOLS).flat());
 
 /**
- * Match text context to the best category pool
+ * Match text context to the best category key & image pool
  */
-function getCategoryPoolForText(text) {
+function getCategoryInfoForText(text) {
   const lower = (text || '').toLowerCase();
   
-  if (lower.includes('brunch') || lower.includes('avocado') || lower.includes('toast') || lower.includes('egg') || lower.includes('benedict') || lower.includes('breakfast')) return VERIFIED_IMAGE_POOLS.brunch;
-  if (lower.includes('pastry') || lower.includes('croissant') || lower.includes('éclair') || lower.includes('eclair') || lower.includes('tart') || lower.includes('bakery') || lower.includes('bread') || lower.includes('dough')) return VERIFIED_IMAGE_POOLS.pastry;
-  if (lower.includes('coffee') || lower.includes('espresso') || lower.includes('cappuccino') || lower.includes('latte') || lower.includes('flat white') || lower.includes('cafe') || lower.includes('café')) return VERIFIED_IMAGE_POOLS.coffee;
-  if (lower.includes('burger') || lower.includes('cheeseburger')) return VERIFIED_IMAGE_POOLS.burger;
-  if (lower.includes('pizza')) return VERIFIED_IMAGE_POOLS.pizza;
-  if (lower.includes('sushi') || lower.includes('roll')) return VERIFIED_IMAGE_POOLS.sushi;
-  if (lower.includes('food') || lower.includes('restaurant') || lower.includes('dining') || lower.includes('dish') || lower.includes('menu')) return VERIFIED_IMAGE_POOLS.food;
+  // Celebration, party, gender reveal
+  if (lower.includes('reveal') || lower.includes('gender') || lower.includes('baby shower') || lower.includes('party') || lower.includes('celebration') || lower.includes('confetti') || lower.includes('balloon')) {
+    return { key: 'celebration', pool: VERIFIED_IMAGE_POOLS.celebration };
+  }
 
-  if (lower.includes('nail') || lower.includes('manicure') || lower.includes('pedicure') || lower.includes('polish')) return VERIFIED_IMAGE_POOLS.nail;
-  if (lower.includes('makeup') || lower.includes('cosmetic') || lower.includes('beauty') || lower.includes('facial') || lower.includes('spa')) return VERIFIED_IMAGE_POOLS.makeup;
-  if (lower.includes('hair') || lower.includes('hairstyle') || lower.includes('barber') || lower.includes('cut')) return VERIFIED_IMAGE_POOLS.hair;
-  if (lower.includes('salon')) return VERIFIED_IMAGE_POOLS.salon;
+  // Food / Bakery / Brunch / Drinks sub-categories
+  if (lower.includes('brunch') || lower.includes('avocado') || lower.includes('toast') || lower.includes('egg') || lower.includes('benedict') || lower.includes('breakfast')) {
+    return { key: 'brunch', pool: VERIFIED_IMAGE_POOLS.brunch };
+  }
+  if (lower.includes('pastry') || lower.includes('croissant') || lower.includes('éclair') || lower.includes('eclair') || lower.includes('tart') || lower.includes('bakery') || lower.includes('bread') || lower.includes('dough') || lower.includes('macaron') || lower.includes('cupcake') || lower.includes('dessert') || lower.includes('sweet')) {
+    return { key: 'pastry', pool: VERIFIED_IMAGE_POOLS.pastry };
+  }
+  if (lower.includes('coffee') || lower.includes('espresso') || lower.includes('cappuccino') || lower.includes('latte') || lower.includes('flat white') || lower.includes('cold brew') || lower.includes('drink') || lower.includes('beverage') || lower.includes('cafe') || lower.includes('café')) {
+    return { key: 'coffee', pool: VERIFIED_IMAGE_POOLS.coffee };
+  }
+  if (lower.includes('panini') || lower.includes('sandwich') || lower.includes('cheese') || lower.includes('herb') || lower.includes('caramelized')) {
+    return { key: 'food', pool: VERIFIED_IMAGE_POOLS.food };
+  }
+  if (lower.includes('burger') || lower.includes('cheeseburger')) return { key: 'burger', pool: VERIFIED_IMAGE_POOLS.burger };
+  if (lower.includes('pizza')) return { key: 'pizza', pool: VERIFIED_IMAGE_POOLS.pizza };
+  if (lower.includes('sushi') || lower.includes('roll')) return { key: 'sushi', pool: VERIFIED_IMAGE_POOLS.sushi };
+  if (lower.includes('food') || lower.includes('restaurant') || lower.includes('dining') || lower.includes('dish') || lower.includes('menu')) {
+    return { key: 'food', pool: VERIFIED_IMAGE_POOLS.food };
+  }
 
-  if (lower.includes('sneaker') || lower.includes('shoe') || lower.includes('kicks')) return VERIFIED_IMAGE_POOLS.sneaker;
-  if (lower.includes('fashion') || lower.includes('cloth') || lower.includes('apparel') || lower.includes('store')) return VERIFIED_IMAGE_POOLS.fashion;
-  if (lower.includes('gym') || lower.includes('fitness') || lower.includes('workout') || lower.includes('muscle') || lower.includes('training')) return VERIFIED_IMAGE_POOLS.gym;
-  if (lower.includes('code') || lower.includes('developer') || lower.includes('laptop') || lower.includes('tech') || lower.includes('saas') || lower.includes('software')) return VERIFIED_IMAGE_POOLS.tech;
-  if (lower.includes('house') || lower.includes('home') || lower.includes('property') || lower.includes('real estate') || lower.includes('living')) return VERIFIED_IMAGE_POOLS.realestate;
-  if (lower.includes('car') || lower.includes('auto') || lower.includes('vehicle')) return VERIFIED_IMAGE_POOLS.car;
-  return VERIFIED_IMAGE_POOLS.general;
+  if (lower.includes('nail') || lower.includes('manicure') || lower.includes('pedicure') || lower.includes('polish')) return { key: 'nail', pool: VERIFIED_IMAGE_POOLS.nail };
+  if (lower.includes('makeup') || lower.includes('cosmetic') || lower.includes('beauty') || lower.includes('facial') || lower.includes('spa')) return { key: 'makeup', pool: VERIFIED_IMAGE_POOLS.makeup };
+  if (lower.includes('hair') || lower.includes('hairstyle') || lower.includes('barber') || lower.includes('cut')) return { key: 'hair', pool: VERIFIED_IMAGE_POOLS.hair };
+  if (lower.includes('salon')) return { key: 'salon', pool: VERIFIED_IMAGE_POOLS.salon };
+
+  if (lower.includes('sneaker') || lower.includes('shoe') || lower.includes('kicks')) return { key: 'sneaker', pool: VERIFIED_IMAGE_POOLS.sneaker };
+  if (lower.includes('fashion') || lower.includes('cloth') || lower.includes('apparel') || lower.includes('store')) return { key: 'fashion', pool: VERIFIED_IMAGE_POOLS.fashion };
+  if (lower.includes('gym') || lower.includes('fitness') || lower.includes('workout') || lower.includes('muscle') || lower.includes('training')) return { key: 'gym', pool: VERIFIED_IMAGE_POOLS.gym };
+  if (lower.includes('code') || lower.includes('developer') || lower.includes('laptop') || lower.includes('tech') || lower.includes('saas') || lower.includes('software')) return { key: 'tech', pool: VERIFIED_IMAGE_POOLS.tech };
+  if (lower.includes('house') || lower.includes('home') || lower.includes('property') || lower.includes('real estate') || lower.includes('living')) return { key: 'realestate', pool: VERIFIED_IMAGE_POOLS.realestate };
+
+  // STRICT WORD BOUNDARY FOR CARS - DO NOT MATCH "caramelized" OR "macaron"!
+  if (/\b(car|cars|automobile|vehicle)\b/i.test(lower)) {
+    return { key: 'car', pool: VERIFIED_IMAGE_POOLS.car };
+  }
+
+  return { key: 'general', pool: VERIFIED_IMAGE_POOLS.general };
 }
 
 /**
@@ -147,10 +175,10 @@ export function extractHtml(rawResponse) {
 
   // 3. CONTEXT-AWARE IMAGE SANITIZER: Transform <img> tags to guaranteed real, working Unsplash URLs
   const poolCounters = {};
-  clean = clean.replace(/<img\s+([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi, (fullTag, beforeSrc, srcUrl, afterSrc) => {
+  clean = clean.replace(/<img\s+([\s\S]*?)src=["']([^"']+)["']([\s\S]*?)>/gi, (fullTag, beforeSrc, srcUrl, afterSrc) => {
     // Combine full tag text (alt, class, id) to detect category context
     const tagContext = `${fullTag} ${beforeSrc} ${afterSrc}`;
-    const pool = getCategoryPoolForText(tagContext);
+    const { key: poolKey, pool } = getCategoryInfoForText(tagContext);
 
     // If srcUrl is ALREADY in the correct category pool for this specific image context, keep it!
     if (pool.includes(srcUrl)) {
@@ -158,12 +186,20 @@ export function extractHtml(rawResponse) {
     }
 
     // Otherwise, select a verified working photo from the matching category pool
-    const poolKey = pool[0];
     poolCounters[poolKey] = (poolCounters[poolKey] || 0);
     const selectedUrl = pool[poolCounters[poolKey] % pool.length];
     poolCounters[poolKey]++;
 
     return `<img ${beforeSrc}src="${selectedUrl}"${afterSrc}>`;
+  });
+
+  // 4. CONTEXT-AWARE IMAGE SANITIZER: Transform background-image: url('...')
+  clean = clean.replace(/url\(['"]?(https:\/\/[^'")]*)['"]?\)/gi, (fullMatch, bgUrl) => {
+    const { pool } = getCategoryInfoForText(clean.substring(0, 500));
+    if (pool.includes(bgUrl)) {
+      return fullMatch;
+    }
+    return `url('${pool[0]}')`;
   });
 
   return clean;
@@ -276,8 +312,8 @@ export async function streamWebsiteGeneration({
       model: model || 'openai/gpt-oss-120b',
       messages: messages,
       stream: true,
-      temperature: 0.7,
-      max_tokens: 16384
+      temperature: 0.2,
+      max_tokens: 8192
     });
 
     let fullText = '';
