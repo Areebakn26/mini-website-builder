@@ -1,3 +1,5 @@
+import OpenAI from 'openai';
+
 // Comprehensive Dictionary of Verified, High-Resolution, 100% Working Unsplash Photo URLs
 const VERIFIED_IMAGE_POOLS = {
   makeup: [
