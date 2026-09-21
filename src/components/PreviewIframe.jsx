@@ -32,12 +32,31 @@ export default function PreviewIframe() {
           }
         }, true);
 
-        // --- Real Image Fallback (NO Placeholders, NO 404s) ---
+        // --- Option A: Dynamic Unsplash Search API (Real-Time Topic Matching) ---
+        var UNSPLASH_KEY = 'p_hRlHDXoJ85r5x_I2ogqmCjLBh_Ch0GCwAzFjdh3FA';
         document.querySelectorAll('img').forEach(function(img) {
+          var altText = img.getAttribute('alt') || img.getAttribute('title') || '';
+          if (altText && altText.length > 2 && !img.dataset.unsplashResolved) {
+            img.dataset.unsplashResolved = 'true';
+            var query = encodeURIComponent(altText.trim());
+            fetch('https://api.unsplash.com/search/photos?query=' + query + '&per_page=5&client_id=' + UNSPLASH_KEY)
+              .then(function(res) { return res.json(); })
+              .then(function(data) {
+                if (data.results && data.results.length > 0) {
+                  var photo = data.results[Math.floor(Math.random() * data.results.length)];
+                  var photoUrl = (photo.urls && (photo.urls.regular || photo.urls.small)) || '';
+                  if (photoUrl) {
+                    img.src = photoUrl;
+                  }
+                }
+              })
+              .catch(function(err) {});
+          }
+
           img.onerror = function() {
             this.onerror = null;
             this.style.objectFit = 'cover';
-            this.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop';
+            this.src = 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800&auto=format&fit=crop';
           };
         });
       });
