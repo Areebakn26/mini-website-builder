@@ -140,9 +140,7 @@ export default function ChatSidebar() {
     const promptToSubmit = customPrompt || inputPrompt;
     if (!promptToSubmit.trim() || isGenerating) return;
 
-    const activeKey = apiKey && !apiKey.includes('your_groq_api_key') 
-      ? apiKey 
-      : 'AQ.Ab8RN6J568hi1sMsb4Nu7kf1_TxrmKLXVvsNJGvaDXQFhyF1iQ';
+    const activeKey = apiKey || import.meta.env.VITE_AI_API_KEY || '';
 
     const userText = promptToSubmit.trim();
     setInputPrompt('');

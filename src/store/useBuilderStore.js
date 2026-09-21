@@ -70,7 +70,7 @@ function titleFromPrompt(prompt) {
 let autoSaveTimer = null;
 
 export const useBuilderStore = create((set, get) => ({
-  apiKey: localStorage.getItem('ai_api_key') || import.meta.env.VITE_AI_API_KEY || 'AQ.Ab8RN6J568hi1sMsb4Nu7kf1_TxrmKLXVvsNJGvaDXQFhyF1iQ',
+  apiKey: localStorage.getItem('ai_api_key') || import.meta.env.VITE_AI_API_KEY || '',
   baseUrl: localStorage.getItem('ai_base_url') || import.meta.env.VITE_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/',
   model: localStorage.getItem('ai_model') || import.meta.env.VITE_AI_MODEL || 'gemini-2.0-flash',
 
