@@ -69,8 +69,18 @@ function titleFromPrompt(prompt) {
 
 let autoSaveTimer = null;
 
+// Sanitize local storage key: if invalid/supabase token was saved, clear it to use deployed VITE_AI_API_KEY
+const getInitialApiKey = () => {
+  const saved = localStorage.getItem('ai_api_key') || '';
+  if (saved.startsWith('AQ') || saved.startsWith('eyJ')) {
+    localStorage.removeItem('ai_api_key');
+    return import.meta.env.VITE_AI_API_KEY || '';
+  }
+  return saved || import.meta.env.VITE_AI_API_KEY || '';
+};
+
 export const useBuilderStore = create((set, get) => ({
-  apiKey: localStorage.getItem('ai_api_key') || import.meta.env.VITE_AI_API_KEY || '',
+  apiKey: getInitialApiKey(),
   baseUrl: localStorage.getItem('ai_base_url') || import.meta.env.VITE_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/',
   model: localStorage.getItem('ai_model') || import.meta.env.VITE_AI_MODEL || 'gemini-1.5-flash',
 
