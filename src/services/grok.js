@@ -310,13 +310,7 @@ export async function streamWebsiteGeneration({
           } catch (e) {}
         }
 
-        const fallbackErr = await res.text();
-        let fallbackMsg = lastErrorMsg;
-        try {
-          const errObj = JSON.parse(fallbackErr);
-          if (errObj.error?.message) fallbackMsg = errObj.error.message;
-        } catch (e) {}
-        throw new Error(`Gemini API Error: ${fallbackMsg || 'Selected model not found. Please verify your API key in Settings.'}`);
+        throw new Error(`Gemini API Error: ${lastErrorMsg || 'Selected model not found. Please verify your API key in Settings.'}`);
       }
 
       const reader = response.body.getReader();
