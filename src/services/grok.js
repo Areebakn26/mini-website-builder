@@ -161,11 +161,12 @@ export function extractHtml(rawResponse) {
 function compressHtmlForPrompt(html) {
   if (!html) return '';
   let compressed = html
+    .replace(/data:image\/[^;]+;base64,[^"']+/gi, 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=')
     .replace(/<svg[\s\S]*?<\/svg>/gi, '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>')
     .replace(/\s+/g, ' ');
 
-  if (compressed.length > 8000) {
-    compressed = compressed.slice(0, 8000) + '... (truncated context)';
+  if (compressed.length > 6000) {
+    compressed = compressed.slice(0, 6000) + '... (truncated context)';
   }
   return compressed;
 }
@@ -223,13 +224,13 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
 
     if (currentCode && currentCode.length > 50 && !currentCode.includes('Describe your dream website')) {
       const compressedCode = compressHtmlForPrompt(currentCode);
-      finalPrompt = `Current website HTML:\n\`\`\`html\n${compressedCode}\n\`\`\`\n\nUser requested fix: ${prompt}\n\nPlease output the COMPLETE updated <!DOCTYPE html> document applying this fix while preserving all existing sections, image tags, matching section IDs, and applying the requested color theme/style changes. DO NOT output conversational text.`;
+      finalPrompt = `Current website HTML:\n\`\`\`html\n${compressedCode}\n\`\`\`\n\nUser requested edit: ${prompt}\n\nPlease output the COMPLETE updated <!DOCTYPE html> document applying this change while preserving all existing sections, image tags, and matching section IDs. DO NOT output conversational text.`;
     } else {
       finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
     }
 
     const MODELS_TO_TRY = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
-    let result;
+    let fullText = '';
     let lastError;
 
     for (const modelName of MODELS_TO_TRY) {
@@ -239,17 +240,35 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
       });
 
       for (let attempt = 0; attempt < 2; attempt++) {
+        fullText = ''; // Reset buffer for retry
         try {
           if (attempt > 0) {
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => setTimeout(r, 2000));
           }
-          result = await currentModel.generateContentStream(finalPrompt);
-          break;
+
+          const result = await currentModel.generateContentStream(finalPrompt);
+
+          for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            fullText += chunkText;
+            if (onChunk) onChunk(fullText);
+          }
+
+          // If stream finished successfully and produced HTML content, return immediately!
+          if (fullText && fullText.length > 50) {
+            return fullText;
+          }
         } catch (err) {
           lastError = err;
           const msg = String(err.message || err.stack || err || "");
           const isTransient = msg.includes("503") || msg.includes("high demand") || msg.includes("overloaded") || msg.includes("parse stream") || msg.includes("stream") || msg.includes("fetch");
-          
+
+          // If we already received substantial HTML before the stream dropped, use what we have!
+          if (fullText && fullText.length > 500 && fullText.toLowerCase().includes('</html>')) {
+            console.warn(`Stream dropped mid-way for ${modelName}, but valid HTML was recovered!`);
+            return fullText;
+          }
+
           if (isTransient) {
             console.warn(`Model ${modelName} encountered transient error (attempt ${attempt + 1}), retrying...`, err);
             continue;
@@ -261,18 +280,11 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
           throw err;
         }
       }
-      if (result) break;
+      if (fullText && fullText.length > 50) break;
     }
 
-    if (!result) {
+    if (!fullText || fullText.length < 50) {
       throw lastError || new Error("All AI models are currently unavailable. Please try again in a moment.");
-    }
-
-    let fullText = '';
-    for await (const chunk of result.stream) {
-      const chunkText = chunk.text();
-      fullText += chunkText;
-      if (onChunk) onChunk(fullText);
     }
 
     return fullText;
