@@ -136,7 +136,13 @@ STRICT GENERATION RULES:
 6. HEAD CDN REQUIREMENTS:
    - Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
    - Lucide Icons: <script src="https://unpkg.com/lucide@latest"></script>
-   - Alpine.js: <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+   - Alpine Collapse Plugin: <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+   - Alpine.js Core: <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+   - Always initialize icons at bottom of body: <script>lucide.createIcons();</script>
+
+7. LUCIDE ICONS & INTERACTIVE TABS:
+   - Use valid Lucide icon names (e.g. "mail", "phone", "map-pin", "star", "check", "arrow-right", "instagram", "facebook", "linkedin").
+   - For interactive category tabs, toggles, accordions, and dropdowns, use Alpine.js (e.g. x-data="{ activeTab: 'all' }", x-show="activeTab === 'all' || activeTab === 'pastries'", @click="activeTab = 'pastries'").
 
 7. ALPINE.JS INTERACTIVITY (WORKING TABS & TOGGLES):
    - Interactive category filter tabs or pricing toggles using x-data, @click, and x-show.
