@@ -173,9 +173,6 @@ export async function streamWebsiteGeneration({
     if (apiKey.startsWith('sk-')) {
       throw new Error("You are using an OpenAI API key ('sk-...'). Please open Settings (🔑) and select 'OpenAI' as your provider.");
     }
-    if (apiKey.startsWith('AQ') || apiKey.startsWith('eyJ')) {
-      throw new Error("You pasted a Supabase key instead of a Google Gemini API Key. Please get a free Gemini API key from https://aistudio.google.com/app/apikey and paste it into Settings (🔑).");
-    }
 
     let userPromptText = '';
     if (currentCode && currentCode.length > 50 && !currentCode.includes('Describe your dream website')) {
