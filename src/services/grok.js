@@ -154,14 +154,8 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
     // Initialize the official Google SDK
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Use the model available for this API key
-    // Confirmed available via ListModels: gemini-3.6-flash, gemini-2.5-flash-lite, gemini-flash-latest
-    const AVAILABLE_MODEL = "gemini-3.6-flash";
-
-    let model = genAI.getGenerativeModel({
-      model: AVAILABLE_MODEL,
-      systemInstruction: SYSTEM_PROMPT,
-    });
+    // Models are created inside the retry loop below
+    // Confirmed available via ListModels: gemini-3.6-flash, gemini-3.5-flash, gemini-flash-latest
 
     let finalPrompt = "";
 
@@ -173,20 +167,45 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
       finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
     }
 
-    // Native streaming via the SDK with automatic fallback on 404
+    // Try models in order, with retry on 503 (server overloaded)
+    const MODELS_TO_TRY = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
     let result;
-    try {
-      result = await model.generateContentStream(finalPrompt);
-    } catch (err) {
-      if (err.message && (err.message.includes("404") || err.message.includes("no longer available") || err.message.includes("not found"))) {
-        const fallbackModel = genAI.getGenerativeModel({
-          model: "gemini-flash-latest",
-          systemInstruction: SYSTEM_PROMPT,
-        });
-        result = await fallbackModel.generateContentStream(finalPrompt);
-      } else {
-        throw err;
+    let lastError;
+
+    for (const modelName of MODELS_TO_TRY) {
+      const currentModel = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: SYSTEM_PROMPT,
+      });
+
+      // Try up to 2 attempts per model (for 503 retries)
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          if (attempt > 0) {
+            // Wait 3 seconds before retry on 503
+            await new Promise(r => setTimeout(r, 3000));
+          }
+          result = await currentModel.generateContentStream(finalPrompt);
+          break; // Success — exit retry loop
+        } catch (err) {
+          lastError = err;
+          const msg = err.message || "";
+          if (msg.includes("503") || msg.includes("high demand") || msg.includes("overloaded")) {
+            console.warn(`Model ${modelName} returned 503 (attempt ${attempt + 1}), retrying...`);
+            continue; // Retry same model
+          }
+          if (msg.includes("404") || msg.includes("not found") || msg.includes("no longer available")) {
+            console.warn(`Model ${modelName} not available, trying next...`);
+            break; // Try next model
+          }
+          throw err; // Unknown error — don't retry
+        }
       }
+      if (result) break; // Got a result — exit model loop
+    }
+
+    if (!result) {
+      throw lastError || new Error("All AI models are currently unavailable. Please try again in a moment.");
     }
 
     let fullText = '';
