@@ -150,7 +150,7 @@ STRICT GENERATION RULES:
 export async function streamWebsiteGeneration({ 
   apiKey, 
   baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/', 
-  model = 'gemini-1.5-flash', 
+  model = 'gemini-2.0-flash', 
   prompt, 
   currentCode, 
   onChunk, 
@@ -160,8 +160,8 @@ export async function streamWebsiteGeneration({
     throw new Error("API Key is missing. Please configure your API key in Settings.");
   }
 
-  // Normalize obsolete or unavailable model names
-  let activeModel = model || 'gemini-1.5-flash';
+  // Active Model selected by user
+  let activeModel = model || 'gemini-2.0-flash';
 
   const isGemini = baseUrl.includes('generativelanguage.googleapis.com') || activeModel.toLowerCase().includes('gemini');
 
@@ -201,10 +201,9 @@ export async function streamWebsiteGeneration({
     const candidateModels = Array.from(new Set([
       activeModel,
       activeModel.replace(/^models\//, ''),
-      'gemini-1.5-flash',
       'gemini-2.0-flash',
-      'gemini-1.5-pro',
-      'gemini-2.0-flash-exp'
+      'gemini-1.5-flash',
+      'gemini-1.5-pro'
     ]));
 
     let response = null;
