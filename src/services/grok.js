@@ -154,14 +154,12 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
     // Initialize the official Google SDK
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Ensure model name is supported by official SDK
-    let validModelName = requestedModel || "gemini-1.5-flash";
-    if (validModelName.includes("gemini-2.0")) {
-      validModelName = "gemini-1.5-flash";
-    }
+    // Use the model available for this API key
+    // Confirmed available via ListModels: gemini-3.6-flash, gemini-2.5-flash-lite, gemini-flash-latest
+    const AVAILABLE_MODEL = "gemini-3.6-flash";
 
     let model = genAI.getGenerativeModel({
-      model: validModelName,
+      model: AVAILABLE_MODEL,
       systemInstruction: SYSTEM_PROMPT,
     });
 
@@ -175,14 +173,14 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
       finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
     }
 
-    // Native streaming via the SDK with automatic fallback to gemini-1.5-flash on 404
+    // Native streaming via the SDK with automatic fallback on 404
     let result;
     try {
       result = await model.generateContentStream(finalPrompt);
     } catch (err) {
-      if (err.message && (err.message.includes("404") || err.message.includes("no longer available"))) {
+      if (err.message && (err.message.includes("404") || err.message.includes("no longer available") || err.message.includes("not found"))) {
         const fallbackModel = genAI.getGenerativeModel({
-          model: "gemini-1.5-flash",
+          model: "gemini-flash-latest",
           systemInstruction: SYSTEM_PROMPT,
         });
         result = await fallbackModel.generateContentStream(finalPrompt);

@@ -72,9 +72,12 @@ let autoSaveTimer = null;
 export const useBuilderStore = create((set, get) => ({
   apiKey: localStorage.getItem('ai_api_key') || import.meta.env.VITE_AI_API_KEY || '',
   baseUrl: localStorage.getItem('ai_base_url') || import.meta.env.VITE_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/',
-  model: localStorage.getItem('ai_model') && localStorage.getItem('ai_model') !== 'gemini-2.0-flash'
-    ? localStorage.getItem('ai_model')
-    : (import.meta.env.VITE_AI_MODEL || 'gemini-1.5-flash'),
+  model: (() => {
+    const stored = localStorage.getItem('ai_model');
+    const stale = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    if (stored && !stale.includes(stored)) return stored;
+    return import.meta.env.VITE_AI_MODEL || 'gemini-3.6-flash';
+  })(),
 
   session: null,
   user: null,
