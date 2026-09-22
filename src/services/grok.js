@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * Client-Side Image Hydration Pattern
@@ -144,284 +144,45 @@ STRICT GENERATION RULES:
 8. LUCIDE ICON INITIALIZATION:
    - Place <script>if (window.lucide) lucide.createIcons();</script> before </body>.`;
 
-/**
- * Stream website generation using native Gemini SSE endpoint or OpenAI-compatible client
- */
-export async function streamWebsiteGeneration({ 
-  apiKey, 
-  baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/', 
-  model = 'gemini-2.0-flash', 
-  prompt, 
-  currentCode, 
-  onChunk, 
-  onError 
-}) {
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please configure your API key in Settings.");
-  }
-
-  // Active Model selected by user
-  let activeModel = model || 'gemini-2.0-flash';
-
-  const isGemini = baseUrl.includes('generativelanguage.googleapis.com') || activeModel.toLowerCase().includes('gemini');
-
-  if (isGemini) {
-    // Detect mismatched API key types
-    if (apiKey.startsWith('gsk_')) {
-      throw new Error("You are using a Groq API key ('gsk_...'). Please open Settings (🔑) and select 'Groq (Llama 70B)' as your provider.");
-    }
-    if (apiKey.startsWith('sk-')) {
-      throw new Error("You are using an OpenAI API key ('sk-...'). Please open Settings (🔑) and select 'OpenAI' as your provider.");
+export async function streamWebsiteGeneration({ apiKey: customKey, model: requestedModel, prompt, currentCode, onChunk, onError }) {
+  try {
+    const apiKey = customKey || import.meta.env.VITE_AI_API_KEY;
+    if (!apiKey) {
+      throw new Error("VITE_AI_API_KEY is missing from environment variables.");
     }
 
-    let userPromptText = '';
+    // Initialize the official Google SDK
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // Use gemini-1.5-flash as it is the most stable for this SDK
+    const model = genAI.getGenerativeModel({
+      model: requestedModel || "gemini-1.5-flash",
+      systemInstruction: SYSTEM_PROMPT,
+    });
+
+    let finalPrompt = "";
+
+    // Handle Iterative Edits vs New Generations
     if (currentCode && currentCode.length > 50 && !currentCode.includes('Describe your dream website')) {
       const compressedCode = compressHtmlForPrompt(currentCode);
-      userPromptText = `Current website HTML:\n\`\`\`html\n${compressedCode}\n\`\`\`\n\nUser requested fix: ${prompt}\n\nPlease output the COMPLETE updated <!DOCTYPE html> document applying this fix while preserving all existing sections, image tags with transparent pixel src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=", descriptive alt attributes, matching section IDs, and applying the requested color theme/style changes. DO NOT output conversational text.`;
+      finalPrompt = `Current website HTML:\n\`\`\`html\n${compressedCode}\n\`\`\`\n\nUser requested fix: ${prompt}\n\nPlease output the COMPLETE updated <!DOCTYPE html> document applying this fix while preserving all existing sections, image tags, matching section IDs, and applying the requested color theme/style changes. DO NOT output conversational text.`;
     } else {
-      userPromptText = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, transparent pixel img src tags with descriptive alt attributes, and styled with the user's requested theme/aesthetic for: ${prompt}`;
+      finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
     }
 
-    const payload = {
-      systemInstruction: {
-        parts: [{ text: SYSTEM_PROMPT }]
-      },
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: userPromptText }]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 8192
-      }
-    };
-
-    const candidateModels = Array.from(new Set([
-      activeModel,
-      activeModel.replace(/^models\//, ''),
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-1.5-pro'
-    ]));
-
-    const apiVersions = ['v1beta', 'v1'];
-    let response = null;
-    let lastErrorMsg = '';
-
-    try {
-      for (const apiVer of apiVersions) {
-        if (response) break;
-        for (const modelCandidate of candidateModels) {
-          const cleanModel = modelCandidate.startsWith('models/') ? modelCandidate : `models/${modelCandidate}`;
-          const url = `https://generativelanguage.googleapis.com/${apiVer}/${cleanModel}:streamGenerateContent?key=${apiKey}&alt=sse`;
-
-          try {
-            const res = await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-              response = res;
-              break;
-            }
-
-            const errText = await res.text();
-            try {
-              const errJson = JSON.parse(errText);
-              lastErrorMsg = errJson.error?.message || `HTTP ${res.status}`;
-            } catch (e) {
-              lastErrorMsg = `HTTP ${res.status}: ${res.statusText}`;
-            }
-
-            if (res.status !== 404 && !lastErrorMsg.toLowerCase().includes('not found')) {
-              throw new Error(`Gemini API Error: ${lastErrorMsg}`);
-            }
-          } catch (subErr) {
-            if (!subErr.message?.toLowerCase().includes('not found') && !subErr.message?.includes('404')) {
-              throw subErr;
-            }
-          }
-        }
-      }
-
-      if (!response) {
-        // Fallback Attempt 2: Direct OpenAI-compatible streaming fetch to Google (v1beta & v1)
-        for (const apiVer of apiVersions) {
-          const openAiUrl = `https://generativelanguage.googleapis.com/${apiVer}/openai/chat/completions`;
-          const openAiPayload = {
-            model: activeModel || 'gemini-2.0-flash',
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: userPromptText }
-            ],
-            stream: true,
-            temperature: 0.2
-          };
-
-          try {
-            const res = await fetch(openAiUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-              },
-              body: JSON.stringify(openAiPayload)
-            });
-
-            if (res.ok) {
-              response = res;
-              const reader = response.body.getReader();
-              const decoder = new TextDecoder('utf-8');
-              let fullText = '';
-              let buffer = '';
-
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                  const trimmed = line.trim();
-                  if (trimmed.startsWith('data:')) {
-                    const jsonStr = trimmed.replace(/^data:\s*/, '');
-                    if (jsonStr === '[DONE]') break;
-                    try {
-                      const data = JSON.parse(jsonStr);
-                      const delta = data.choices?.[0]?.delta?.content || '';
-                      if (delta) {
-                        fullText += delta;
-                        onChunk(fullText);
-                      }
-                    } catch (e) {}
-                  }
-                }
-              }
-              return fullText;
-            }
-          } catch (e) {}
-        }
-
-        throw new Error(`Gemini API Error: ${lastErrorMsg || 'Selected model not found. Please verify your API key in Settings.'}`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let fullText = '';
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('data:')) {
-            const jsonStr = trimmed.replace(/^data:\s*/, '');
-            if (!jsonStr) continue;
-            try {
-              const data = JSON.parse(jsonStr);
-              const parts = data.candidates?.[0]?.content?.parts;
-              if (parts) {
-                for (const part of parts) {
-                  if (part.text) {
-                    fullText += part.text;
-                    onChunk(fullText);
-                  }
-                }
-              }
-            } catch (e) {
-              // Ignore partial JSON parse errors during stream
-            }
-          }
-        }
-      }
-
-      if (buffer.trim().startsWith('data:')) {
-        const jsonStr = buffer.trim().replace(/^data:\s*/, '');
-        if (jsonStr) {
-          try {
-            const data = JSON.parse(jsonStr);
-            const parts = data.candidates?.[0]?.content?.parts;
-            if (parts) {
-              for (const part of parts) {
-                if (part.text) {
-                  fullText += part.text;
-                  onChunk(fullText);
-                }
-              }
-            }
-          } catch (e) {}
-        }
-      }
-
-      return fullText;
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('Gemini Native API Error:', error);
-      if (onError) onError(error);
-      throw error;
-    }
-  }
-
-  // Fallback to OpenAI SDK client for non-Gemini providers (Groq, OpenAI, DeepSeek, etc.)
-  const client = new OpenAI({
-    apiKey: apiKey,
-    baseURL: baseUrl || 'https://generativelanguage.googleapis.com/v1beta/openai/',
-    dangerouslyAllowBrowser: true
-  });
-
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT }
-  ];
-
-  if (currentCode && currentCode.length > 50 && !currentCode.includes('Describe your dream website')) {
-    const compressedCode = compressHtmlForPrompt(currentCode);
-    messages.push({
-      role: 'user',
-      content: `Current website HTML:\n\`\`\`html\n${compressedCode}\n\`\`\``
-    });
-    messages.push({
-      role: 'user',
-      content: `User requested fix: ${prompt}\n\nPlease output the COMPLETE updated <!DOCTYPE html> document applying this fix while preserving all existing sections, image tags with transparent pixel src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=", descriptive alt attributes, matching section IDs, and applying the requested color theme/style changes. DO NOT output conversational text.`
-    });
-  } else {
-    messages.push({
-      role: 'user',
-      content: `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, transparent pixel img src tags with descriptive alt attributes, and styled with the user's requested theme/aesthetic for: ${prompt}`
-    });
-  }
-
-  try {
-    const stream = await client.chat.completions.create({
-      model: model || 'gemini-2.0-flash',
-      messages: messages,
-      stream: true,
-      temperature: 0.2,
-      max_tokens: 8192
-    });
+    // Native streaming via the SDK (handles CORS automatically)
+    const result = await model.generateContentStream(finalPrompt);
 
     let fullText = '';
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content || '';
-      fullText += delta;
-      onChunk(fullText);
+    for await (const chunk of result.stream) {
+      const chunkText = chunk.text();
+      fullText += chunkText;
+      if (onChunk) onChunk(fullText);
     }
 
     return fullText;
   } catch (error) {
-    if (import.meta.env.DEV) console.error('AI API Error:', error);
+    console.error('AI API Error:', error);
     if (onError) onError(error);
     throw error;
   }
