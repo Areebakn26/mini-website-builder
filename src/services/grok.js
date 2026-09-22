@@ -206,101 +206,108 @@ export async function streamWebsiteGeneration({
       'gemini-1.5-pro'
     ]));
 
+    const apiVersions = ['v1beta', 'v1'];
     let response = null;
     let lastErrorMsg = '';
 
     try {
-      for (const modelCandidate of candidateModels) {
-        const cleanModel = modelCandidate.startsWith('models/') ? modelCandidate : `models/${modelCandidate}`;
-        const url = `https://generativelanguage.googleapis.com/v1beta/${cleanModel}:streamGenerateContent?key=${apiKey}&alt=sse`;
+      for (const apiVer of apiVersions) {
+        if (response) break;
+        for (const modelCandidate of candidateModels) {
+          const cleanModel = modelCandidate.startsWith('models/') ? modelCandidate : `models/${modelCandidate}`;
+          const url = `https://generativelanguage.googleapis.com/${apiVer}/${cleanModel}:streamGenerateContent?key=${apiKey}&alt=sse`;
 
-        try {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-          });
-
-          if (res.ok) {
-            response = res;
-            break;
-          }
-
-          const errText = await res.text();
           try {
-            const errJson = JSON.parse(errText);
-            lastErrorMsg = errJson.error?.message || `HTTP ${res.status}`;
-          } catch (e) {
-            lastErrorMsg = `HTTP ${res.status}: ${res.statusText}`;
-          }
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(payload)
+            });
 
-          // If error is NOT a 404 / model not found (e.g. 401 invalid key), break immediately
-          if (res.status !== 404 && !lastErrorMsg.toLowerCase().includes('not found')) {
-            throw new Error(`Gemini API Error: ${lastErrorMsg}`);
-          }
-        } catch (subErr) {
-          if (!subErr.message?.toLowerCase().includes('not found') && !subErr.message?.includes('404')) {
-            throw subErr;
+            if (res.ok) {
+              response = res;
+              break;
+            }
+
+            const errText = await res.text();
+            try {
+              const errJson = JSON.parse(errText);
+              lastErrorMsg = errJson.error?.message || `HTTP ${res.status}`;
+            } catch (e) {
+              lastErrorMsg = `HTTP ${res.status}: ${res.statusText}`;
+            }
+
+            if (res.status !== 404 && !lastErrorMsg.toLowerCase().includes('not found')) {
+              throw new Error(`Gemini API Error: ${lastErrorMsg}`);
+            }
+          } catch (subErr) {
+            if (!subErr.message?.toLowerCase().includes('not found') && !subErr.message?.includes('404')) {
+              throw subErr;
+            }
           }
         }
       }
 
       if (!response) {
-        // Fallback Attempt 2: Direct OpenAI-compatible streaming fetch to Google
-        const openAiUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-        const openAiPayload = {
-          model: activeModel || 'gemini-2.0-flash',
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPromptText }
-          ],
-          stream: true,
-          temperature: 0.2
-        };
+        // Fallback Attempt 2: Direct OpenAI-compatible streaming fetch to Google (v1beta & v1)
+        for (const apiVer of apiVersions) {
+          const openAiUrl = `https://generativelanguage.googleapis.com/${apiVer}/openai/chat/completions`;
+          const openAiPayload = {
+            model: activeModel || 'gemini-2.0-flash',
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: userPromptText }
+            ],
+            stream: true,
+            temperature: 0.2
+          };
 
-        const res = await fetch(openAiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify(openAiPayload)
-        });
+          try {
+            const res = await fetch(openAiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+              },
+              body: JSON.stringify(openAiPayload)
+            });
 
-        if (res.ok) {
-          response = res;
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder('utf-8');
-          let fullText = '';
-          let buffer = '';
+            if (res.ok) {
+              response = res;
+              const reader = response.body.getReader();
+              const decoder = new TextDecoder('utf-8');
+              let fullText = '';
+              let buffer = '';
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
 
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (trimmed.startsWith('data:')) {
-                const jsonStr = trimmed.replace(/^data:\s*/, '');
-                if (jsonStr === '[DONE]') break;
-                try {
-                  const data = JSON.parse(jsonStr);
-                  const delta = data.choices?.[0]?.delta?.content || '';
-                  if (delta) {
-                    fullText += delta;
-                    onChunk(fullText);
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (trimmed.startsWith('data:')) {
+                    const jsonStr = trimmed.replace(/^data:\s*/, '');
+                    if (jsonStr === '[DONE]') break;
+                    try {
+                      const data = JSON.parse(jsonStr);
+                      const delta = data.choices?.[0]?.delta?.content || '';
+                      if (delta) {
+                        fullText += delta;
+                        onChunk(fullText);
+                      }
+                    } catch (e) {}
                   }
-                } catch (e) {}
+                }
               }
+              return fullText;
             }
-          }
-          return fullText;
+          } catch (e) {}
         }
 
         const fallbackErr = await res.text();
