@@ -4,9 +4,9 @@ import { Key, Sparkles, X, Check, ShieldCheck, Globe, Cpu } from 'lucide-react';
 
 const PROVIDER_PRESETS = [
   {
-    name: 'Google Gemini 2.0 Flash',
+    name: 'Google Gemini 1.5 Flash',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-    model: 'gemini-2.0-flash'
+    model: 'gemini-1.5-flash'
   },
   {
     name: 'Google Gemini 1.5 Pro',
