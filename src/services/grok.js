@@ -214,7 +214,7 @@ STRICT GENERATION RULES:
    - Place <script>if (window.lucide) lucide.createIcons();</script> before </body>.`;
 
 /**
- * Streaming via Groq API (Primary - Ultra Fast Llama-3.3-70B Model)
+ * Streaming via Groq API (Primary Engine with Multi-Model Fallback Chain)
  */
 export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
   if (!apiKey) {
@@ -235,29 +235,49 @@ export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
     finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
   }
 
-  const stream = await openai.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: finalPrompt },
-    ],
-    temperature: 0.7,
-    max_tokens: 8192,
-    stream: true,
-  });
+  // Fallback chain across active Groq models in case specific key tiers restrict 70B
+  const GROQ_MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-70b-versatile",
+    "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768",
+  ];
 
-  let fullText = "";
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content || "";
-    fullText += content;
-    if (onChunk) onChunk(fullText);
+  let lastErr;
+  for (const modelName of GROQ_MODELS) {
+    try {
+      const stream = await openai.chat.completions.create({
+        model: modelName,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: finalPrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 8192,
+        stream: true,
+      });
+
+      let fullText = "";
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        fullText += content;
+        if (onChunk) onChunk(fullText);
+      }
+
+      if (fullText && fullText.length > 50) {
+        return fullText;
+      }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Groq model ${modelName} unavailable, attempting fallback model...`, err.message);
+    }
   }
 
-  return fullText;
+  throw lastErr || new Error("All Groq models failed.");
 }
 
 /**
- * Streaming via Google Gemini API (Fallback - Multi-Model Loop)
+ * Streaming via Google Gemini API (Secondary Engine with Multi-Model Loop)
  */
 export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
   if (!apiKey) {
@@ -335,7 +355,7 @@ export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
 
 /**
  * Main Automatic Router Function:
- * Tries Primary (Groq Llama-3.3-70B) first for 5x speed & reliability.
+ * Tries Primary (Groq Llama-3.3-70B -> Llama-3.1-8B) first for 5x speed & reliability.
  * Automatically fails over to Secondary (Google Gemini) if Groq fails or is not configured.
  */
 export async function streamWebsiteGeneration({ apiKey: customKey, model: requestedModel, prompt, currentCode, onChunk, onError }) {
@@ -346,10 +366,10 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
   const groqKey = import.meta.env.VITE_GROQ_API_KEY || (customKey?.startsWith('gsk_') ? customKey : null);
   const geminiKey = (customKey && !customKey.startsWith('gsk_')) ? customKey : import.meta.env.VITE_AI_API_KEY;
 
-  // STEP 1: Attempt Groq API first (Llama-3.3-70B model - 5x faster, zero 503s)
+  // STEP 1: Attempt Groq API first (Llama-3.3-70B model chain - 5x faster, zero 503s)
   if (groqKey) {
     try {
-      console.log("⚡ Router: Attempting primary Groq API (llama-3.3-70b-versatile)...");
+      console.log("⚡ Router: Attempting primary Groq API...");
       streamedText = await streamGroq({
         apiKey: groqKey,
         prompt,
