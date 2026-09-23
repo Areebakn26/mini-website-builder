@@ -214,7 +214,7 @@ STRICT GENERATION RULES:
    - Place <script>if (window.lucide) lucide.createIcons();</script> before </body>.`;
 
 /**
- * Streaming via Groq API (Primary Engine with Multi-Model Fallback Chain)
+ * Streaming via Groq API (Primary Engine with Active Production Model Chain)
  */
 export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
   if (!apiKey) {
@@ -235,17 +235,19 @@ export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
     finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
   }
 
-  // Fallback chain across active Groq models in case specific key tiers restrict 70B
+  // Active, active production Groq models (official current models)
   const GROQ_MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-70b-versatile",
-    "llama-3.1-8b-instant",
-    "mixtral-8x7b-32768",
+    "llama3-70b-8192",
+    "llama3-8b-8192",
+    "gemma2-9b-it",
+    "llama-3.3-70b-specdec",
+    "qwen-2.5-coder-32b",
   ];
 
   let lastErr;
   for (const modelName of GROQ_MODELS) {
     try {
+      console.log(`Trying Groq model: ${modelName}...`);
       const stream = await openai.chat.completions.create({
         model: modelName,
         messages: [
@@ -269,7 +271,7 @@ export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
       }
     } catch (err) {
       lastErr = err;
-      console.warn(`Groq model ${modelName} unavailable, attempting fallback model...`, err.message);
+      console.warn(`Groq model ${modelName} unavailable, attempting next model...`, err.message);
     }
   }
 
@@ -355,7 +357,7 @@ export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
 
 /**
  * Main Automatic Router Function:
- * Tries Primary (Groq Llama-3.3-70B -> Llama-3.1-8B) first for 5x speed & reliability.
+ * Tries Primary (Groq active production models) first for 5x speed & reliability.
  * Automatically fails over to Secondary (Google Gemini) if Groq fails or is not configured.
  */
 export async function streamWebsiteGeneration({ apiKey: customKey, model: requestedModel, prompt, currentCode, onChunk, onError }) {
@@ -366,7 +368,7 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
   const groqKey = import.meta.env.VITE_GROQ_API_KEY || (customKey?.startsWith('gsk_') ? customKey : null);
   const geminiKey = (customKey && !customKey.startsWith('gsk_')) ? customKey : import.meta.env.VITE_AI_API_KEY;
 
-  // STEP 1: Attempt Groq API first (Llama-3.3-70B model chain - 5x faster, zero 503s)
+  // STEP 1: Attempt Groq API first (Llama-3 70B / 8B active models - 5x faster, zero 503s)
   if (groqKey) {
     try {
       console.log("⚡ Router: Attempting primary Groq API...");
