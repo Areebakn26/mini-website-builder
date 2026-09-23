@@ -1,48 +1,73 @@
-# 🚀 WebCraft AI — Full-Stack AI Website Builder SaaS
+# 🚀 WebCraft AI — Dual-Engine AI Website Builder SaaS
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-success?style=for-the-badge&logo=vercel)](https://mini-website-builder-omega.vercel.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-violet.svg)](https://opensource.org/licenses/MIT)
 [![Vite](https://img.shields.io/badge/Vite-8.3-blue.svg)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-19.0-cyan.svg)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4.0-38bdf8.svg)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth_%26_Database-emerald.svg)](https://supabase.com/)
-[![Gemini](https://img.shields.io/badge/AI_Engine-Gemini_2.0_Flash-amber.svg)](https://ai.google.dev/)
+[![Groq Llama 70B](https://img.shields.io/badge/Primary_AI-Groq_Llama_3.3_70B-orange.svg)](https://groq.com/)
+[![Google Gemini](https://img.shields.io/badge/Fallback_AI-Google_Gemini_Flash-blue.svg)](https://ai.google.dev/)
 
-**WebCraft AI** is a production-grade, AI-powered website builder SaaS application. It allows users to generate full, responsive, multi-section single-page websites in real-time using natural language prompts, complete with interactive Alpine.js controls, live Monaco code editing, client-side Unsplash image hydration, voice input recognition, and cloud project history.
+🔗 **Live Production URL**: [https://mini-website-builder-omega.vercel.app](https://mini-website-builder-omega.vercel.app)
+
+**WebCraft AI** is a production-grade, full-stack AI-powered website builder SaaS application. It enables users to generate full, responsive, multi-section single-page websites in real-time using natural language prompts, complete with interactive Alpine.js controls, live Monaco code editing, automatic HD Unsplash photo hydration, voice prompt recognition, and cloud project history.
 
 ---
 
-## 🏗️ Architectural Highlights & Key Engineering Decisions
+## 📸 Platform Highlights & Demo Preview
 
-### 1. 🖼️ Client-Side Image Hydration Pattern (Zero 404s & Topic Matching)
-- **Problem**: Traditional LLMs often invent non-existent image URLs, guess broken Unsplash links, or generate random mismatched pictures (e.g. sports cars in bakery menus).
-- **Solution**: The system prompt forces the LLM to output lightweight transparent base64 GIF placeholders (`data:image/gif;base64,...`) for every `<img>` tag alongside highly descriptive `alt` context attributes.
-- **Hydration Engine**: Upon stream completion, `hydrateImages(htmlString)` parses the document via browser `DOMParser`, extracts `alt` strings, and concurrently fetches real-time HD photos from the official **Unsplash Search API** using `Promise.all`. This guarantees **100% topic accuracy** and **0% broken image links**.
+```
++-----------------------------------------------------------------------------------+
+|  [AI Chat Sidebar]             |  [Live Preview Canvas & Device Toggles]          |
+|  - Prompt: "Artisanal Bakery"  |  Desktop | Tablet | Mobile | Code Editor View     |
+|  - Router: Groq 70B -> Gemini  |  +--------------------------------------------+  |
+|  - Live SSE Progress           |  |  Hero Banner with Sourdough & Pastry Photos|  |
+|  - Voice Input                 |  |  Alpine.js Menu Tabs (Coffee, Pastry)      |  |
+|  - Saved Cloud Projects        |  |  Embedded Reservation Form (No Overlays)   |  |
+|                                |  +--------------------------------------------+  |
++-----------------------------------------------------------------------------------+
+```
 
-### 2. ⚡ Isolated Sandbox Iframe Execution & Smooth Navigation
-- Generated HTML string is rendered inside a sandboxed `<iframe>` (`sandbox="allow-scripts allow-modals"`).
-- Injected client scripts intercept anchor links (`<a href="#section">`), applying smooth scroll positioning (`scroll-padding-top: 5rem`) and a 3-tier fallback target matcher (Exact ID ➔ Fuzzy ID ➔ Heading text content) to ensure navbar links always work regardless of minor LLM naming variations.
+---
 
-### 3. 🔒 Supabase Auth & Multi-Tenant Row Level Security (RLS)
+## 🏗️ Architectural Highlights & Key Engineering Features
+
+### 1. ⚡ Dual-API Failover Architecture (Senior-Level Router)
+- **Primary Engine**: **Groq API** running `llama-3.3-70b-versatile` / `llama3-70b-8192` (~5x faster generation, zero latency spikes).
+- **Secondary Engine**: **Google Gemini API** (`gemini-3.5-flash-lite` / `gemini-3.6-flash`).
+- **Self-Healing Router**: Automatically detects key prefix formats (`gsk_` vs `AQ./AIza`). If the primary Groq provider encounters rate limits or network errors, the system catches the exception and fails over to Gemini seamlessly without crashing the UI or showing broken states.
+
+### 2. 🖼️ Smart HD Image Hydration Engine (Zero Broken <img> Links)
+- **Problem**: Traditional LLMs often invent broken Unsplash links, hallucinate invalid URLs, or generate generic mismatched images.
+- **Solution**: The system prompt forces the LLM to output lightweight transparent base64 placeholders (`data:image/gif;base64,...`) for every `<img>` tag alongside descriptive `alt` attributes.
+- **Hydration Engine**: Upon stream completion, `hydrateImages(htmlString)` parses the document via browser `DOMParser` and queries the **Unsplash Search API**. If API keys are rate limited, a curated **Topic Photo Dictionary** (`bakery`, `coffee`, `sneakers`, `realestate`, `food`, `tech`, `fitness`) automatically assigns high-resolution photos matching the `alt` context.
+
+### 3. ⚡ Resilient Mid-Stream Stream Recovery
+- Stream consumption is wrapped directly inside the attempt loop. If Google's API drops mid-way or returns a transient 503 during long prompt edit requests, the system recovers generated HTML and finishes parsing without throwing unhandled promise rejections.
+
+### 4. 🔒 Supabase Auth & Multi-Tenant Row Level Security (RLS)
 - Integrated `@supabase/supabase-js` for Email/Password & Google OAuth authentication.
 - **Cascading RLS Policies**: Database access is enforced strictly at the PostgreSQL layer using Supabase Row Level Security.
   - `projects`: Users can only SELECT, INSERT, UPDATE, and DELETE rows where `user_id = auth.uid()`.
   - `messages`: Cascading policy verifies that `messages.project_id` belongs to a project owned by `auth.uid()`.
 
-### 4. 🛡️ Zero-Wipe State Synchronization & Debounced Auto-Save
-- **Race Condition Guard**: Introduced `isProjectLoading` locks to prevent browser refresh or initial page hydration from overwriting cloud database entries with empty strings.
-- **Debounced Auto-Save**: Monaco code edits and AI updates automatically sync to Supabase 2 seconds after typing stops, bypassing unnecessary database spam during live LLM streaming.
+### 5. 🛡️ Debounced Auto-Save & Zero-Wipe Locks
+- **Race Condition Guard**: `isProjectLoading` locks prevent page refreshes from overwriting database entries with empty states.
+- **Debounced Sync**: Monaco code edits and AI updates automatically sync to Supabase 2 seconds after typing stops.
 
 ---
 
 ## 🛠️ Tech Stack & Key Libraries
 
-- **Frontend**: React 19, Vite 8, Tailwind CSS v4, Zustand v5.
-- **AI Model Engine**: Google Gemini 2.0 Flash (`gemini-2.0-flash`) via OpenAI-compatible SDK endpoint.
+- **Frontend Framework**: React 19, Vite 8, Tailwind CSS v4, Zustand v5.
+- **AI Engine 1 (Primary)**: Groq SDK (`llama-3.3-70b-versatile`).
+- **AI Engine 2 (Fallback)**: `@google/generative-ai` (`gemini-3.5-flash-lite`, `gemini-3.6-flash`).
 - **Code Editor**: `@monaco-editor/react` (VS Code Monaco instance).
-- **Image Hydration Engine**: Unsplash Search REST API v1.
+- **Image Hydration Engine**: Unsplash Search REST API v1 + Topic Photo Resolver.
 - **Database & Auth**: Supabase Auth & PostgreSQL Database with RLS.
-- **Voice Recognition**: Native Browser `webkitSpeechRecognition` / `SpeechRecognition` API.
-- **UI Icons & Visual Effects**: Lucide React, Canvas Confetti.
+- **Voice Recognition**: Native Browser Speech Recognition API.
+- **UI Icons & FX**: Lucide React, Canvas Confetti.
 
 ---
 
@@ -51,15 +76,18 @@
 Create a `.env.local` file in the project root:
 
 ```env
-# AI Model Configuration (Gemini 2.0 Flash)
-VITE_AI_API_KEY=your_gemini_api_key_here
-VITE_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-VITE_AI_MODEL=gemini-2.0-flash
+# 1. Primary AI Engine (Groq Llama 70B - Ultra Fast)
+VITE_GROQ_API_KEY=gsk_your_groq_api_key_here
 
-# Unsplash Search API Credentials
+# 2. Fallback AI Engine (Google Gemini)
+VITE_AI_API_KEY=AQ.your_gemini_api_key_here
+VITE_AI_MODEL=gemini-3.5-flash-lite
+VITE_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+
+# 3. Unsplash Search API (Optional)
 VITE_UNSPLASH_ACCESS_KEY=your_unsplash_access_key_here
 
-# Supabase Production Configuration
+# 4. Supabase Auth & Cloud Database
 VITE_SUPABASE_URL=https://ufytvbdsvumoavcmsdlc.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmeXR2YmRzdnVtb2F2Y21zZGxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMDI0NzQsImV4cCI6MjEwNTU3ODQ3NH0.9I0cj9oTKHbdES6MeYyYvntwP3oWDA1VgpGYDDeBu-k
 ```
@@ -104,50 +132,17 @@ create policy "Users can delete messages" on public.messages for delete using (e
 
 ---
 
-## 🌐 Deployment Plan & Instructions (Vercel)
-
-### Step 1: Push Code to GitHub
-Ensure all changes are committed and pushed to your GitHub repository:
-```bash
-git add .
-git commit -m "feat: complete WebCraft AI SaaS with Vercel SPA routing and README"
-git push origin main
-```
-
-### Step 2: Import Project to Vercel
-1. Log in to [vercel.com](https://vercel.com) and click **Add New Project**.
-2. Select your `WebCraft AI` / `Mini Website builder` GitHub repository.
-3. Framework Preset: Select **Vite**.
-
-### Step 3: Configure Environment Variables on Vercel
-In the Vercel deployment setup screen, expand **Environment Variables** and add:
-
-| Key | Value |
-| --- | --- |
-| `VITE_AI_API_KEY` | `your_gemini_api_key_here` |
-| `VITE_AI_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
-| `VITE_AI_MODEL` | `gemini-2.0-flash` |
-| `VITE_UNSPLASH_ACCESS_KEY` | `your_unsplash_access_key_here` |
-| `VITE_SUPABASE_URL` | `https://ufytvbdsvumoavcmsdlc.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
-
-### Step 4: Deploy & Verify Single Page Application Routing
-- Click **Deploy**.
-- `vercel.json` will automatically ensure all routes map to `index.html`, eliminating 404s on refresh.
-
----
-
 ## 🏃‍♂️ Local Development
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/webcraft-ai.git
-cd webcraft-ai
+git clone https://github.com/Areebakn26/mini-website-builder.git
+cd mini-website-builder
 
 # Install dependencies
 npm install
 
-# Start development server
+# Start local development server
 npm run dev
 
 # Build for production
