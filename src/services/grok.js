@@ -215,7 +215,7 @@ STRICT GENERATION RULES:
    - Alpine.js Core: <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 7. LUCIDE ICONS & INTERACTIVE TABS:
-   - Use valid Lucide icon names (e.g. "mail", "phone", "map-pin", "star", "check", "arrow-right", "instagram", "facebook", "linkedin", "clock", "shopping-bag", "zap").
+   - Use valid Lucide icon names (e.g. "mail", "phone", "map-pin", "star", "check", "arrow-right", "clock", "shopping-bag", "zap", "instagram", "facebook", "twitter").
    - For interactive category tabs, toggles, accordions, and dropdowns, use Alpine.js (e.g. x-data="{ activeTab: 'all' }", x-show="activeTab === 'all' || activeTab === 'sneakers'", @click="activeTab = 'sneakers'").
 
 8. LUCIDE ICON INITIALIZATION:
@@ -223,7 +223,6 @@ STRICT GENERATION RULES:
 
 /**
  * Streaming via Groq API (Primary Engine)
- * Strictly verifies API key format starts with 'gsk_' before sending request to Groq.
  */
 export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
   if (!apiKey || !apiKey.startsWith("gsk_")) {
@@ -244,47 +243,29 @@ export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
     finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
   }
 
-  const GROQ_MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-  ];
+  const stream = await openai.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: finalPrompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 8192,
+    stream: true,
+  });
 
-  let lastErr;
-  for (const modelName of GROQ_MODELS) {
-    try {
-      console.log(`Trying Groq model: ${modelName}...`);
-      const stream = await openai.chat.completions.create({
-        model: modelName,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: finalPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 8192,
-        stream: true,
-      });
-
-      let fullText = "";
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        fullText += content;
-        if (onChunk) onChunk(fullText);
-      }
-
-      if (fullText && fullText.length > 50) {
-        return fullText;
-      }
-    } catch (err) {
-      lastErr = err;
-      console.warn(`Groq model ${modelName} unavailable, attempting next model...`, err.message);
-    }
+  let fullText = "";
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content || "";
+    fullText += content;
+    if (onChunk) onChunk(fullText);
   }
 
-  throw lastErr || new Error("All Groq models failed.");
+  return fullText;
 }
 
 /**
- * Streaming via Google Gemini API (Secondary Engine with Low-Latency Model Chain)
+ * Streaming via Google Gemini API (Secondary Engine - Ultra Fast Model List)
  */
 export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
   if (!apiKey) {
@@ -301,12 +282,11 @@ export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
     finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
   }
 
-  // Fast, high-capacity Gemini model chain (prioritizing 2.5-flash-lite and flash-latest to avoid 503s)
+  // Google's official recommended fast model list (gemini-3.5-flash-lite avoids 503s & 404s!)
   const MODELS_TO_TRY = [
-    "gemini-2.5-flash-lite",
-    "gemini-flash-latest",
+    "gemini-3.5-flash-lite",
     "gemini-3.6-flash",
-    "gemini-3.5-flash"
+    "gemini-flash-latest"
   ];
   let fullText = '';
   let lastError;
@@ -321,7 +301,7 @@ export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
       fullText = '';
       try {
         if (attempt > 0) {
-          await new Promise(r => setTimeout(r, 2000));
+          await new Promise(r => setTimeout(r, 1500));
         }
 
         const result = await currentModel.generateContentStream(finalPrompt);
@@ -350,7 +330,7 @@ export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
           continue;
         }
         if (msg.includes("404") || msg.includes("not found") || msg.includes("no longer available")) {
-          console.warn(`Model ${modelName} not available, trying next...`);
+          console.warn(`Model ${modelName} not available, trying next model...`);
           break;
         }
         throw err;
