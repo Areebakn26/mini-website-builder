@@ -193,13 +193,22 @@ export default function ChatSidebar() {
         }
       });
 
-      // Stream successfully completed! Extract final HTML and hydrate images
-      const finalHtml = extractHtml(streamedText);
+      // Stream completed! Extract final HTML and hydrate images
+      let finalHtml = extractHtml(streamedText);
+      if (!finalHtml || finalHtml.length < 50) {
+        finalHtml = extractHtml(currentCode);
+      }
+
       if (finalHtml && finalHtml.length > 50) {
         updateLastAssistantMessage("Finding perfect HD photos...");
-        const hydratedHtml = await hydrateImages(finalHtml);
-        setCurrentCode(hydratedHtml);
-        
+        try {
+          const hydratedHtml = await hydrateImages(finalHtml);
+          setCurrentCode(hydratedHtml);
+        } catch (imgErr) {
+          console.warn("Image hydration warning:", imgErr);
+          setCurrentCode(finalHtml);
+        }
+
         const assistantSuccessMsg = "Website generated successfully! You can preview it live or tweak it further.";
         updateLastAssistantMessage(assistantSuccessMsg);
         if (activeProjId) {
@@ -213,7 +222,7 @@ export default function ChatSidebar() {
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error("Website generation caught error:", err);
       if (previousCodeBackup) setCurrentCode(previousCodeBackup);
     } finally {
       setIsGenerating(false);

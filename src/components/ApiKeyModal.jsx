@@ -4,6 +4,11 @@ import { Key, Sparkles, X, Check, ShieldCheck, Globe, Cpu } from 'lucide-react';
 
 const PROVIDER_PRESETS = [
   {
+    name: 'Groq (Llama 3.3 70B - Ultra Fast)',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    model: 'llama-3.3-70b-versatile'
+  },
+  {
     name: 'Google Gemini 3.6 Flash',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     model: 'gemini-3.6-flash'
@@ -12,11 +17,6 @@ const PROVIDER_PRESETS = [
     name: 'Google Gemini 2.5 Pro',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     model: 'gemini-2.5-pro'
-  },
-  {
-    name: 'Groq (Llama 70B)',
-    baseUrl: 'https://api.groq.com/openai/v1',
-    model: 'llama-3.3-70b-versatile'
   },
   {
     name: 'OpenAI (GPT-4o)',
