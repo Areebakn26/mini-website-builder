@@ -214,11 +214,12 @@ STRICT GENERATION RULES:
    - Place <script>if (window.lucide) lucide.createIcons();</script> before </body>.`;
 
 /**
- * Streaming via Groq API (Primary Engine with Active Production Model Chain)
+ * Streaming via Groq API (Primary Engine)
+ * Strictly verifies API key format starts with 'gsk_' before sending request to Groq.
  */
 export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
-  if (!apiKey) {
-    throw new Error("GROQ API Key is missing.");
+  if (!apiKey || !apiKey.startsWith("gsk_")) {
+    throw new Error("GROQ API Key must start with 'gsk_'. Skipping Groq API...");
   }
 
   const openai = new OpenAI({
@@ -235,13 +236,9 @@ export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
     finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
   }
 
-  // Active, active production Groq models (official current models)
   const GROQ_MODELS = [
-    "llama3-70b-8192",
-    "llama3-8b-8192",
-    "gemma2-9b-it",
-    "llama-3.3-70b-specdec",
-    "qwen-2.5-coder-32b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
   ];
 
   let lastErr;
@@ -279,7 +276,7 @@ export async function streamGroq({ apiKey, prompt, currentCode, onChunk }) {
 }
 
 /**
- * Streaming via Google Gemini API (Secondary Engine with Multi-Model Loop)
+ * Streaming via Google Gemini API (Secondary Engine with Low-Latency Model Chain)
  */
 export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
   if (!apiKey) {
@@ -296,7 +293,13 @@ export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
     finalPrompt = `Build a complete, scrollable, multi-section single-page website with embedded sections (NO blocking overlays), Alpine.js tabs, and styled with the user's requested theme/aesthetic for: ${prompt}`;
   }
 
-  const MODELS_TO_TRY = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+  // Fast, high-capacity Gemini model chain (prioritizing 2.5-flash-lite and flash-latest to avoid 503s)
+  const MODELS_TO_TRY = [
+    "gemini-2.5-flash-lite",
+    "gemini-flash-latest",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash"
+  ];
   let fullText = '';
   let lastError;
 
@@ -357,21 +360,24 @@ export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
 
 /**
  * Main Automatic Router Function:
- * Tries Primary (Groq active production models) first for 5x speed & reliability.
- * Automatically fails over to Secondary (Google Gemini) if Groq fails or is not configured.
+ * Strict key format validation:
+ * - Groq API requires a key starting with 'gsk_' (VITE_GROQ_API_KEY).
+ * - Gemini API receives standard key (VITE_AI_API_KEY starting with AQ/AIza).
  */
 export async function streamWebsiteGeneration({ apiKey: customKey, model: requestedModel, prompt, currentCode, onChunk, onError }) {
   let streamedText = "";
   let groqError = null;
 
-  // Determine Groq Key & Gemini Key strictly from environment or custom input (NO HARDCODED KEYS)
-  const groqKey = import.meta.env.VITE_GROQ_API_KEY || (customKey?.startsWith('gsk_') ? customKey : null);
+  // Strictly check key prefixes
+  const groqKey = (customKey?.startsWith('gsk_') ? customKey : null) || 
+                  (import.meta.env.VITE_GROQ_API_KEY?.startsWith('gsk_') ? import.meta.env.VITE_GROQ_API_KEY : null);
+
   const geminiKey = (customKey && !customKey.startsWith('gsk_')) ? customKey : import.meta.env.VITE_AI_API_KEY;
 
-  // STEP 1: Attempt Groq API first (Llama-3 70B / 8B active models - 5x faster, zero 503s)
+  // STEP 1: Attempt Groq API ONLY if a valid 'gsk_' key exists
   if (groqKey) {
     try {
-      console.log("⚡ Router: Attempting primary Groq API...");
+      console.log("⚡ Router: Valid Groq key detected (gsk_...). Attempting primary Groq API...");
       streamedText = await streamGroq({
         apiKey: groqKey,
         prompt,
@@ -387,14 +393,16 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
       }
     } catch (err) {
       groqError = err;
-      console.warn("⚠️ Groq API failed, falling back to Gemini...", err);
+      console.warn("⚠️ Groq API failed, falling back to Gemini...", err.message);
     }
+  } else {
+    console.log("ℹ️ Router: No 'gsk_' Groq key found. Routing directly to Gemini API...");
   }
 
   // STEP 2: Fallback to Gemini API
   if (geminiKey) {
     try {
-      console.log("🔄 Router: Attempting fallback Gemini API...");
+      console.log("🔄 Router: Attempting Gemini API...");
       streamedText = await streamGemini({
         apiKey: geminiKey,
         prompt,
@@ -417,7 +425,7 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
     if (onError) onError(groqError);
     throw groqError;
   } else {
-    const err = new Error("No valid AI API Key found. Please add VITE_GROQ_API_KEY or VITE_AI_API_KEY to your environment variables.");
+    const err = new Error("No valid AI API Key found. Please add VITE_AI_API_KEY or VITE_GROQ_API_KEY to your environment variables.");
     if (onError) onError(err);
     throw err;
   }
