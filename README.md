@@ -88,8 +88,8 @@ VITE_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 VITE_UNSPLASH_ACCESS_KEY=your_unsplash_access_key_here
 
 # 4. Supabase Auth & Cloud Database
-VITE_SUPABASE_URL=https://ufytvbdsvumoavcmsdlc.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmeXR2YmRzdnVtb2F2Y21zZGxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMDI0NzQsImV4cCI6MjEwNTU3ODQ3NH0.9I0cj9oTKHbdES6MeYyYvntwP3oWDA1VgpGYDDeBu-k
+VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 ```
 
 ---
