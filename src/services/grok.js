@@ -19,6 +19,12 @@ const TOPIC_PHOTO_COLLECTIONS = {
     'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=1200&auto=format&fit=crop', // Latte art
     'https://images.unsplash.com/photo-1497636577773-f1231844b336?w=1200&auto=format&fit=crop', // Coffee beans
   ],
+  sneakers: [
+    'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=1200&auto=format&fit=crop', // Luxury sneakers
+    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200&auto=format&fit=crop', // Red running shoes
+    'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?w=1200&auto=format&fit=crop', // White sneakers
+    'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=1200&auto=format&fit=crop', // Sneaker collection
+  ],
   realestate: [
     'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&auto=format&fit=crop', // Luxury villa
     'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&auto=format&fit=crop', // Modern house
@@ -57,6 +63,8 @@ function getFallbackImage(altText, index = 0) {
     category = 'bakery';
   } else if (alt.includes('coffee') || alt.includes('latte') || alt.includes('espresso') || alt.includes('cafe') || alt.includes('tea')) {
     category = 'coffee';
+  } else if (alt.includes('sneaker') || alt.includes('shoe') || alt.includes('kicks') || alt.includes('footwear') || alt.includes('apparel')) {
+    category = 'sneakers';
   } else if (alt.includes('house') || alt.includes('home') || alt.includes('villa') || alt.includes('real estate') || alt.includes('interior') || alt.includes('room') || alt.includes('apartment') || alt.includes('property')) {
     category = 'realestate';
   } else if (alt.includes('food') || alt.includes('dish') || alt.includes('restaurant') || alt.includes('dinner') || alt.includes('meal') || alt.includes('chef') || alt.includes('pizza') || alt.includes('burger')) {
@@ -183,7 +191,7 @@ STRICT GENERATION RULES:
    - For EVERY single <img> tag, you MUST use this exact transparent pixel for the src attribute:
      src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
    - You MUST write a highly descriptive and specific alt attribute for what the image should depict, based on the section's context.
-   - Example Hero: <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="modern minimalist artisanal sourdough bread and croissants on wooden table" class="...">
+   - Example Hero: <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="modern minimalist luxury red sneakers on dark background" class="...">
    - Example Product: <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="freshly brewed latte in ceramic mug with latte art" class="...">
 
 3. NO BLOCKING OVERLAYS / EMBEDDED SECTIONS:
@@ -196,8 +204,8 @@ STRICT GENERATION RULES:
    - NEVER add "h-screen" or "overflow-hidden" to the <body> tag.
 
 5. NAVBAR & EXACT MATCHING SECTION IDs (CRITICAL FOR NAVIGATION):
-   - Every single <a> link in the navbar MUST have an href attribute starting with '#' (e.g., href="#menu", href="#story", href="#reservation").
-   - You MUST add the EXACT corresponding id attribute to the target section tag (e.g., <section id="menu">, <section id="story">, <section id="reservation">).
+   - Every single <a> link in the navbar MUST have an href attribute starting with '#' (e.g., href="#products", href="#reviews", href="#reservation").
+   - You MUST add the EXACT corresponding id attribute to the target section tag (e.g., <section id="products">, <section id="reviews">, <section id="reservation">).
    - Ensure the id string in <section id="..."> matches the href anchor in <a href="..."> EXACTLY, letter for letter.
 
 6. HEAD CDN REQUIREMENTS:
@@ -207,8 +215,8 @@ STRICT GENERATION RULES:
    - Alpine.js Core: <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 7. LUCIDE ICONS & INTERACTIVE TABS:
-   - Use valid Lucide icon names (e.g. "mail", "phone", "map-pin", "star", "check", "arrow-right", "instagram", "facebook", "linkedin", "clock", "utensils", "coffee").
-   - For interactive category tabs, toggles, accordions, and dropdowns, use Alpine.js (e.g. x-data="{ activeTab: 'coffee' }", x-show="activeTab === 'coffee'", @click="activeTab = 'pastries'").
+   - Use valid Lucide icon names (e.g. "mail", "phone", "map-pin", "star", "check", "arrow-right", "instagram", "facebook", "linkedin", "clock", "shopping-bag", "zap").
+   - For interactive category tabs, toggles, accordions, and dropdowns, use Alpine.js (e.g. x-data="{ activeTab: 'all' }", x-show="activeTab === 'all' || activeTab === 'sneakers'", @click="activeTab = 'sneakers'").
 
 8. LUCIDE ICON INITIALIZATION:
    - Place <script>if (window.lucide) lucide.createIcons();</script> before </body>.`;
@@ -360,22 +368,28 @@ export async function streamGemini({ apiKey, prompt, currentCode, onChunk }) {
 
 /**
  * Main Automatic Router Function:
- * Strict key format validation:
- * - Groq API requires a key starting with 'gsk_' (VITE_GROQ_API_KEY).
- * - Gemini API receives standard key (VITE_AI_API_KEY starting with AQ/AIza).
+ * Strict key type evaluation:
+ * - If key starts with 'gsk_', route to Groq API.
+ * - If key starts with 'AQ.' or 'AIza', route to Gemini API.
  */
 export async function streamWebsiteGeneration({ apiKey: customKey, model: requestedModel, prompt, currentCode, onChunk, onError }) {
   let streamedText = "";
   let groqError = null;
 
-  // Strictly check key prefixes
-  const groqKey = (customKey?.startsWith('gsk_') ? customKey : null) || 
-                  (import.meta.env.VITE_GROQ_API_KEY?.startsWith('gsk_') ? import.meta.env.VITE_GROQ_API_KEY : null);
+  // Identify Key Types explicitly:
+  let groqKey = import.meta.env.VITE_GROQ_API_KEY;
+  let geminiKey = import.meta.env.VITE_AI_API_KEY;
 
-  const geminiKey = (customKey && !customKey.startsWith('gsk_')) ? customKey : import.meta.env.VITE_AI_API_KEY;
+  if (customKey) {
+    if (customKey.startsWith('gsk_')) {
+      groqKey = customKey;
+    } else if (customKey.startsWith('AQ.') || customKey.startsWith('AIza')) {
+      geminiKey = customKey;
+    }
+  }
 
-  // STEP 1: Attempt Groq API ONLY if a valid 'gsk_' key exists
-  if (groqKey) {
+  // STEP 1: Attempt Groq API ONLY if groqKey starts with 'gsk_'
+  if (groqKey && groqKey.startsWith('gsk_')) {
     try {
       console.log("⚡ Router: Valid Groq key detected (gsk_...). Attempting primary Groq API...");
       streamedText = await streamGroq({
@@ -396,7 +410,7 @@ export async function streamWebsiteGeneration({ apiKey: customKey, model: reques
       console.warn("⚠️ Groq API failed, falling back to Gemini...", err.message);
     }
   } else {
-    console.log("ℹ️ Router: No 'gsk_' Groq key found. Routing directly to Gemini API...");
+    console.log("ℹ️ Router: Skipping Groq (no valid 'gsk_' key). Routing directly to Gemini API...");
   }
 
   // STEP 2: Fallback to Gemini API
